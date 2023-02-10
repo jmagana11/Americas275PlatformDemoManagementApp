@@ -1,0 +1,87 @@
+operations:
+  view:
+    - type: web
+      impl: index.html
+actions: actions
+web: web-src
+runtimeManifest:
+  packages:
+    dx-excshell-1:
+      license: Apache-2.0
+      actions:
+        getsandboxes:
+          function: actions/getsandboxes/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          inputs:
+            LOG_LEVEL: debug
+            apiKey: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_client__id
+            clientSecret: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_client__secret
+            techAccId: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_technical__account__id
+            techAccEm: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_technical__account__email
+            orgId: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_ims__org__id
+          annotations:
+            require-adobe-auth: true
+            final: true
+        getSegments:
+          function: actions/getSegments/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          inputs:
+            LOG_LEVEL: debug
+            apiKey: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_client__id
+            clientSecret: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_client__secret
+            techAccId: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_technical__account__id
+            techAccEm: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_technical__account__email
+            orgId: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_ims__org__id
+          annotations:
+            require-adobe-auth: true
+            final: true
+        refreshSegment:
+          function: actions/refreshSegment/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          inputs:
+            LOG_LEVEL: debug
+            apiKey: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_client__id
+            clientSecret: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_client__secret
+            techAccId: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_technical__account__id
+            techAccEm: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_technical__account__email
+            orgId: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_ims__org__id
+          annotations:
+            require-adobe-auth: true
+            final: true
+        getSegmentJobStatus:
+          function: actions/getSegmentJobStatus/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          inputs:
+            LOG_LEVEL: debug
+            apiKey: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_client__id
+            clientSecret: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_client__secret
+            techAccId: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_technical__account__id
+            techAccEm: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_technical__account__email
+            orgId: >-
+              $AIO_ims_contexts_Americas275DemoManagementApp__J__1675959714897_ims__org__id
+          annotations:
+            require-adobe-auth: true
+            final: true
