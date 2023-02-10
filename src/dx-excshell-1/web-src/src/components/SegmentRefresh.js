@@ -5,12 +5,10 @@ import {
     Heading,
     Form,
     Picker,
-    TextArea,
     ActionButton,
     StatusLight,
     ProgressBar,
     Item,
-    Text,
     View
 } from '@adobe/react-spectrum'
 import Function from '@spectrum-icons/workflow/Function'
@@ -144,15 +142,16 @@ function SegmentRefresh(props) {
                                 isIndeterminate={true}/>) }
             </Form>
             {refreshedSegmentJobItem && ( 
-                <div>
-                <Heading>{`Segment Job ID: ${refreshedSegmentJobItem}`}</Heading>
+                <div><br></br>
+                <StatusLight variant="positive">{`Segment Job ID: ${refreshedSegmentJobItem}`}</StatusLight>
+                <br></br>
                 <Form onSubmit={handleSubmitSegmentRef}>
                     <Flex><ActionButton disabled={isStatusLoading} type="submit">Get Job Status</ActionButton></Flex>
                 </Form></div>)}
                 {isStatusLoading && ( <ProgressBar 
                                 aria-label="Loading.."
                                 isIndeterminate={true}/>) }
-            {segmentStatusItem && (<div><Heading>{`Status: ${segmentStatusItem.status}`}</Heading></div>)}
+            {segmentStatusItem && (<div><br></br><StatusLight variant="positive">{`Status: ${segmentStatusItem.status}`}</StatusLight></div>)}
         </View>
     );
 }
