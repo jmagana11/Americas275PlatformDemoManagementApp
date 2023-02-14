@@ -10,6 +10,7 @@ import SideBar from './SideBar'
 import { Home } from './Home'
 import { About } from './About'
 import  SegmentRefresh  from './SegmentRefresh'
+import  SandboxManagement  from './SandboxManagement'
 
 function App (props) {
   console.log('runtime object:', props.runtime)
@@ -50,6 +51,9 @@ function App (props) {
                 </Route>
                 <Route path='/SegmentRefresh'>
                   <SegmentRefresh runtime={props.runtime} ims={props.ims}/>
+                </Route>
+                <Route path='/SandboxManagement'>
+                  <SandboxManagement runtime={props.runtime} ims={props.ims}/>
                 </Route>
                 <Route path='/about'>
                   <About></About>
