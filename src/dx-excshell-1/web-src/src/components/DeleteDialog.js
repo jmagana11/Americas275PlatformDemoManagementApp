@@ -1,8 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import PropTypes from 'prop-types'
-import { Form, TextField, Heading, Dialog, Divider, Content, ButtonGroup, Button, useDialogContainer, DialogContainer, Flex } from '@adobe/react-spectrum'
-import Function from '@spectrum-icons/workflow/Function'
-import allActions from '../config.json'
+import React, { useState } from 'react'
+import { Form, TextField, Heading, Dialog, Divider, Content, ButtonGroup, Button, useDialogContainer, Flex } from '@adobe/react-spectrum'
 
 function DeleteDialog(props) {
     let dialog = useDialogContainer();
