@@ -1,39 +1,41 @@
 import React, { useState } from 'react'
-import { Form, TextField, Heading, Dialog, Divider, Content, ButtonGroup, Button, useDialogContainer, Flex } from '@adobe/react-spectrum'
+import { Form, TextField, Heading, Dialog, Divider, Content, ButtonGroup, Button, useDialogContainer } from '@adobe/react-spectrum'
 
 function DeleteDialog(props) {
     let dialog = useDialogContainer();
-    const [sbxName, setSbxName] = useState('');
+    const [context, setContext] = useState('');
 
     function handleDeletion(){
         
-        if(sbxName === props.sbxContext){
+        if(context === props.context){
             console.log('Matched');
+            props.parentCallback(true);
             dialog.dismiss();
-            alert(`Sandbox: ${props.sbxContext} has been deleted!`);
         }else{
             console.log('NOTMatched');
             dialog.dismiss();
-            alert(`Sandbox: ${sbxName} couldn't be found!`);
         }
         
+    }
+
+    function cancel(){
+        dialog.dismiss();
     }
 
     return (
         <>
             <Dialog>
-                <Heading>Please type the {props.description} ({props.sbxContext}): </Heading>
+                <Heading>Please type the {props.description} ({props.context}): </Heading>
                 <Divider />
                 <Content>
                     <Form labelPosition="side" width="100%">
-                        <TextField autoFocus label="SandboxName:" onChange={setSbxName} value={sbxName}/>
-                        <Flex>
-                        </Flex>
+                        <TextField autoFocus label="SandboxName:" onChange={setContext} value={context}/>
                     </Form>
-                    <ButtonGroup>
-                            <Button variant="negative" onPress={handleDeletion}>Delete</Button>
-                    </ButtonGroup>
                 </Content>
+                <ButtonGroup>
+                    <Button variant="secondary" onPress={cancel}>Cancel</Button>
+                    <Button variant="negative" onPress={handleDeletion}>Delete</Button>
+                </ButtonGroup>
             </Dialog>
         </>
     );

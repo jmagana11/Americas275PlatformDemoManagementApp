@@ -17,15 +17,15 @@ function SandboxManagement(props) {
             <Heading>Sandbox Management Services:</Heading>
             <Tabs aria-label="Sandbox Management Services:">
                 <TabList>
-                    <Item key="create">Create Sandbox</Item>
                     <Item key="delete">Delete Sandbox</Item>
+                    <Item key="create">Create Sandbox</Item>
                 </TabList>
                 <TabPanels>
-                    <Item key="create">
-                        <CreateSandbox ims={props.ims} />
-                    </Item>
                     <Item key="delete">
                         <DeleteSandbox ims={props.ims} />
+                    </Item>
+                    <Item key="create">
+                        <CreateSandbox ims={props.ims} />
                     </Item>
                 </TabPanels>
             </Tabs>

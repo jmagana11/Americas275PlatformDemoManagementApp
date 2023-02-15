@@ -9,6 +9,7 @@
     "@adobe/generator-app-excshell": "^0.2.4",
     "@adobe/react-spectrum": "^3.4.0",
     "@spectrum-icons/workflow": "^3.2.0",
+    "@spectrum-web-components/toast": "^0.11.12",
     "core-js": "^3.6.4",
     "node-fetch": "^2.6.0",
     "react": "^16.13.1",

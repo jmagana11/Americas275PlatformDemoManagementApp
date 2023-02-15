@@ -6,9 +6,23 @@ import React from 'react'
 import { Heading, View, Content, Link } from '@adobe/react-spectrum'
 export const About = () => (
   <View width="size-6000">
-    <Heading level={1}>Useful documentation for your app</Heading>
+    <Heading level={1}>Useful documentation about this app</Heading>
     <Content>
       <ul style={{ listStyle: 'none' }}>
+        <li>
+          <Link>
+            <a href='https://github.com/jmagana11/Americas275PlatformDemoManagementApp' target='_blank'>
+              Project Repo
+            </a>
+          </Link>
+        </li>
+        <li>
+          <Link>
+            <a href='https://developer.adobe.com/console/projects/440115/4566206088344913715/overview' target='_blank'>
+              Adobe Developer Console Project
+            </a>
+          </Link>
+        </li>
         <li>
           <Link>
             <a href='https://github.com/AdobeDocs/project-firefly/blob/master/README.md#project-firefly-developer-guide' target='_blank'>
