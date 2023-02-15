@@ -61,6 +61,7 @@ function DeleteSandbox(props){
     return(
         <>
         <Heading>Delete a Sandbox:</Heading>
+        <StatusLight variant="negative">Fully functional UI without a backend. Purely concept purposes.</StatusLight>
         <ListBox aria-label="Alignment">
             <Item>1) Select Sandbox Name</Item>
             <Item>2) Hit the Delete Button and confirm</Item>
