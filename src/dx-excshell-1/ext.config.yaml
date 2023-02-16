@@ -85,3 +85,13 @@ runtimeManifest:
           annotations:
             require-adobe-auth: true
             final: true
+        jmeterNFemailTracking:
+          function: actions/jmeterNFemailTracking/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          inputs:
+            LOG_LEVEL: debug
+            apiKey: $jmeterKey
+          annotations:
+            require-adobe-auth: true
+            final: true

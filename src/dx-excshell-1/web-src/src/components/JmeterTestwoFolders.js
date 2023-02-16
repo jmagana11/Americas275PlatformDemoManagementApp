@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import { Dialog, AlertDialog, DialogTrigger, Switch, Divider, Slider, ProgressBar, Item, Form, TextField, ActionButton, ListBox, Heading, Flex, DialogContainer, StatusLight, ContextualHelp, Content, Text, NumberField } from '@adobe/react-spectrum'
-import ConfirmDialog from './ConfirmDialog'
+import ConfirmDialogJmeter from './ConfirmDialogJmeter'
 import SandboxPicker from './SandboxPicker'
+import allActions from '../config.json'
 
 function JmeterTestwoFolders(props) {
     const [sandboxName, setSandboxName] = useState("");
     const [_isJobLoading, set_IsJobLoading] = useState(false);
     const [opeConfirmation, setOpenConfirmation] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
-    const [errorMessage, setErrorMessage] = useState(null);
-    const [mirrorLink, SetMirrorLink] = useState(0);
+    const [mirrorLink, setMirrorLink] = useState(0);
     const [navLink, setNavLink] = useState(0);
     const [offerLink, setOfferLink] = useState(0);
-    const [productLink, SetProductLink] = useState(0);
-    const [socialLink, SetSocialLink] = useState(0);
+    const [productLink, setProductLink] = useState(0);
+    const [socialLink, setSocialLink] = useState(0);
     const [unsubLink, setUnsubLink] = useState(0);
     const [linkError, setLinkError] = useState("yellow");
     const [logFile, setLogFile] = useState("");
@@ -29,8 +29,62 @@ function JmeterTestwoFolders(props) {
     const [socialPosition, setSocialPosition] = useState("");
     const [unsubPosition, setUnsubPosition] = useState("");
     const [unsubscribe, setUnsubscribe] = useState(false);
-    const [isOpen, setOpen] = useState(true);
+    const [result, setResult] = useState('');
+    const [globalSetErrors, setGlobalSetErrors] = useState("yellow");
 
+    useEffect(() => {
+        //validations:
+        const total = mirrorLink + navLink + offerLink + productLink + socialLink + unsubLink;
+
+        if (total > 100) {
+            setLinkError("negative");
+        }
+        if (total < 100) {
+            setLinkError("yellow")
+        }
+        if (total === 100) {
+            setLinkError("positive")
+        }
+
+        if( sandboxName.length > 0 && 
+            logFile.length > 0  && 
+            totalOpens > 0 && 
+            mobExpPercentage > 0  && 
+            desktopClicks > 0 && 
+            mobileClicks > 0  && 
+            numberTrackingLinks > 0){
+                
+                setGlobalSetErrors("positive");
+                console.log("positive")
+        }
+    }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink, sandboxName, logFile, totalOpens, mobExpPercentage, desktopClicks, mobileClicks, numberTrackingLinks]);
+
+    function resetState(){
+        //we reset the state after a successful submission...
+        setSandboxName("");
+        setMirrorLink(0);
+        setNavLink(0);
+        setOfferLink(0);
+        setProductLink(0);
+        setSocialLink(0);
+        setUnsubLink(0);
+        setLogFile("");
+        setTotalOpens(0);
+        setMobExpPercentage(0);
+        setDesktopClicks(0);
+        setMobileClicks(0);
+        setNumberTrackingLinks(0);
+        setMirrorPosition("");
+        setOfferPosition("");
+        setNavLinkPosition("");
+        setOfferPosition("");
+        setProductPosition("");
+        setSocialPosition("");
+        setUnsubPosition("");
+        setUnsubscribe(false);
+    }
+
+    //Start setting the header object
     const actionHeaders = {
         'Content-Type': 'application/json'
     }
@@ -61,92 +115,86 @@ function JmeterTestwoFolders(props) {
 
     function handleFormSubmission(event) {
         event.preventDefault();
-        console.log('submitted')
 
-        if (sandboxName.length === 0 ||
-            logFile.length === 0 ||
-            totalOpens === 0 ||
-            desktopClicks === 0 ||
-            numberTrackingLinks === 0) {
-            setOpen(true);
-            setErrorMessage('invalid')
-
-        } else {
-            setErrorMessage('valid');
-            setOpen(false);
-        }
-
-        const data = {
-            "jmeter": {
-                "file_ref": logFile,
-                "total_opens": totalOpens,
-                "mobile_experience_pct": mobExpPercentage,
-                "desk_clicks_pct": desktopClicks,
-                "mobile_clicks_pct": mobileClicks,
-                "links": {
-                    "count_tracked": numberTrackingLinks,
-                    "mirror": {
-                        "pct": mirrorLink,
-                        "pos": (mirrorPosition.split(",").map(Number).length > 0) ? mirrorPosition.split(",").map(Number) : []
-                    },
-                    "navigation": {
-                        "pct": navLink,
-                        "pos": (navLinkPosition.split(",").map(Number).length > 0) ? navLinkPosition.split(",").map(Number) : []
-                    },
-                    "offer": {
-                        "pct": offerLink,
-                        "pos": (offerPosition.split(",").map(Number).length > 0) ? offerPosition.split(",").map(Number) : []
-                    },
-                    "product": {
-                        "pct": productLink,
-                        "pos": (productPosition.split(",").map(Number).length > 0) ? productPosition.split(",").map(Number) : []
-                    },
-                    "social": {
-                        "pct": socialLink,
-                        "pos": (socialPosition.split(",").map(Number).length > 0) ? socialPosition.split(",").map(Number) : []
-                    },
-                    "unsub": {
-                        "pct": unsubLink,
-                        "pos": (unsubPosition.split(",").map(Number).length > 0) ? unsubPosition.split(",").map(Number) : [],
-                        "persist": unsubscribe
+        const data = { "formBody": {
+                "jmeter": {
+                    "file_ref": logFile,
+                    "total_opens": totalOpens,
+                    "mobile_experience_pct": mobExpPercentage,
+                    "desk_clicks_pct": desktopClicks,
+                    "mobile_clicks_pct": mobileClicks,
+                    "links": {
+                        "count_tracked": numberTrackingLinks,
+                        "mirror": {
+                            "pct": mirrorLink,
+                            "pos": (mirrorPosition.split(",").map(Number).length > 0) ? mirrorPosition.split(",").map(Number) : []
+                        },
+                        "navigation": {
+                            "pct": navLink,
+                            "pos": (navLinkPosition.split(",").map(Number).length > 0) ? navLinkPosition.split(",").map(Number) : []
+                        },
+                        "offer": {
+                            "pct": offerLink,
+                            "pos": (offerPosition.split(",").map(Number).length > 0) ? offerPosition.split(",").map(Number) : []
+                        },
+                        "product": {
+                            "pct": productLink,
+                            "pos": (productPosition.split(",").map(Number).length > 0) ? productPosition.split(",").map(Number) : []
+                        },
+                        "social": {
+                            "pct": socialLink,
+                            "pos": (socialPosition.split(",").map(Number).length > 0) ? socialPosition.split(",").map(Number) : []
+                        },
+                        "unsub": {
+                            "pct": unsubLink,
+                            "pos": (unsubPosition.split(",").map(Number).length > 0) ? unsubPosition.split(",").map(Number) : [],
+                            "persist": unsubscribe
+                        }
                     }
+                },
+                "options": {
+                    "project": "jmeter_svpoc",
+                    "sandbox_name": sandboxName
                 }
-            },
-            "options": {
-                "project": "jmeter_svpoc",
-                "sandbox_name": sandboxName
             }
         }
-        console.log(linkError)
-        console.log(errorMessage)
-        if (linkError === "positive" && errorMessage === 'valid') {
+
+        //We check there is no errors on the fields. 
+        if (linkError === "positive" && globalSetErrors === 'positive') {
             console.log(JSON.stringify(data));
-            setShowConfirmation(true);
+            set_IsJobLoading(true);
+            callAction(JSON.stringify(data));
         }
     }
 
+    //This handles our custom sandbox picker
     function handleSandboxSelection(selection) {
         setSandboxName(selection);
-        //console.log("selection", selection)
     }
 
-    useEffect(() => {
-        const total = mirrorLink + navLink + offerLink + productLink + socialLink + unsubLink;
-        if (total > 100) {
-            setLinkError("negative");
-        }
-        if (total < 100) {
-            setLinkError("yellow")
-        }
-        if (total === 100) {
-            setLinkError("positive")
-        }
-    }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink]);
-    //<SandboxPicker key={key} ims={props.ims} parentCallback={handleSandboxSelection} />
+    function callAction(data){
+        fetchConfig['body'] = data;
+        fetchConfig['method'] = 'POST';
+        fetch(allActions.jmeterNFemailTracking, fetchConfig)
+            .then((response) => response.json())
+            .then((data) => {
+                if (data) { 
+                    setResult(JSON.stringify(data));
+                    set_IsJobLoading(false); 
+                    setShowConfirmation(true); 
+                    resetState(); 
+                    setGlobalSetErrors('yellow');
+                    console.log('Form submitted successfully:', data);
+                }
+                
+            });
+    }
+
     return (
         <>
             <Heading level={3}>Run Jmeter Test without specific folder requirement</Heading>
             <Heading level={4}>Global Settings:</Heading>
+            <StatusLight variant={globalSetErrors}>You must provide all fields in this section.</StatusLight><br></br>
             <Form isRequired={true} onSubmit={handleFormSubmission}>
                 <Flex direction="row">
                     <SandboxPicker
@@ -161,6 +209,7 @@ function JmeterTestwoFolders(props) {
                 <Flex direction="row">
                     <TextField
                         onChange={setLogFile}
+                        value={logFile}
                         width="size-6000"
                         label="Log File Name"
                         contextualHelp={
@@ -180,6 +229,7 @@ function JmeterTestwoFolders(props) {
                         width="size-6000"
                         label="Total Opens"
                         maxValue={200}
+                        value={totalOpens}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -197,6 +247,7 @@ function JmeterTestwoFolders(props) {
                         width="size-6000"
                         label="Mobile Experience %"
                         maxValue={100}
+                        value={mobExpPercentage}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -214,6 +265,7 @@ function JmeterTestwoFolders(props) {
                         width="size-6000"
                         label="Desktop Clicks %"
                         maxValue={100}
+                        value={desktopClicks}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -230,6 +282,7 @@ function JmeterTestwoFolders(props) {
                         onChange={setMobileClicks}
                         width="size-6000"
                         label="Mobile Clicks %"
+                        value={mobileClicks}
                         maxValue={100}
                         isFilled
                         contextualHelp={
@@ -248,6 +301,7 @@ function JmeterTestwoFolders(props) {
                         width="size-6000"
                         label="# of Tracking Links"
                         maxValue={100}
+                        value={numberTrackingLinks}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -269,9 +323,10 @@ function JmeterTestwoFolders(props) {
                 <Heading align="center" level={1} color="red">Total: {mirrorLink + navLink + offerLink + productLink + socialLink + unsubLink} %</Heading>
                 <Flex direction="row" gap="size-1000">
                     <Slider
-                        onChange={SetMirrorLink}
+                        onChange={setMirrorLink}
                         label="Mirror Link Tracking %"
                         maxValue={100}
+                        value={mirrorLink}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -304,6 +359,7 @@ function JmeterTestwoFolders(props) {
                         onChange={setNavLink}
                         label="Nav Link Tracking %"
                         maxValue={100}
+                        value={navLink}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -335,6 +391,7 @@ function JmeterTestwoFolders(props) {
                     <Slider
                         onChange={setOfferLink}
                         label="Offer Link Tracking %"
+                        value={offerLink}
                         maxValue={100}
                         isFilled
                         contextualHelp={
@@ -365,9 +422,10 @@ function JmeterTestwoFolders(props) {
                 </Flex >
                 <Flex direction="row" gap="size-1000">
                     <Slider
-                        onChange={SetProductLink}
+                        onChange={setProductLink}
                         label="Product Link Tracking %"
                         maxValue={100}
+                        value={productLink}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -397,9 +455,10 @@ function JmeterTestwoFolders(props) {
                 </Flex >
                 <Flex direction="row" gap="size-1000">
                     <Slider
-                        onChange={SetSocialLink}
+                        onChange={setSocialLink}
                         label="Social Link Tracking %"
                         maxValue={100}
+                        value={socialLink}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -430,6 +489,7 @@ function JmeterTestwoFolders(props) {
                 <Flex direction="row" gap="size-1000">
                     <Slider
                         onChange={setUnsubLink}
+                        value={unsubLink}
                         label="Unsub Link Tracking %"
                         maxValue={100}
                         isFilled
@@ -461,6 +521,7 @@ function JmeterTestwoFolders(props) {
                 </Flex >
                 <Switch
                     onChange={setUnsubscribe}
+                    value={unsubscribe}
                     contextualHelp={
                         <ContextualHelp variant="info" placement="top start" flex>
                             <Heading>Unsubscribed Link Positions</Heading>
@@ -481,26 +542,11 @@ function JmeterTestwoFolders(props) {
                     <ProgressBar aria-label="Loading.." isIndeterminate={true} />
                 )}
             </Form>
-            <DialogContainer onDismiss={() => setOpenConfirmation(null)}>
-                {opeConfirmation && (<ConfirmDialog context={sandboxName} description={"Create Sandbox"} parentCallback={confirmation} />)}
+            <DialogContainer onDismiss={() => setShowConfirmation(null)}>
+                {showConfirmation && (<ConfirmDialogJmeter context={sandboxName} message={result} parentCallback={confirmation} />)}
             </DialogContainer>
             <br></br>
             {showConfirmation && (<StatusLight variant="positive">Your submission was successful. Check your Developer Tools Console in your browser to see the result</StatusLight>)}
-            {errorMessage == "invalid" && (
-                <DialogContainer onDismiss={() => setOpen(false)} {...props}>
-                    {isOpen && (<AlertDialog
-                        variant="error"
-                        title="Something is wrong!"
-                        primaryActionLabel="Retry"
-                        cancelLabel="Cancel">
-                        {sandboxName.length === 0 ? ('Please Provide a Sandbox Name') : ''}<br></br>
-                        {logFile.length === 0 ? ('Please Provide a Log File Name') : ''}<br></br>
-                        {totalOpens === 0 ? ('Total Opens cant be zero') : ''}<br></br>
-                        {desktopClicks === 0 ? ('Desktop Clicks cant be zero') : ''}<br></br>
-                        {numberTrackingLinks === 0 ? ('# of Tracking Links cant be zero') : ''}<br></br>
-                    </AlertDialog>)}
-                </DialogContainer>
-            )}
         </>
     )
 }
