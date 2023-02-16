@@ -15,7 +15,7 @@ function SideBar () {
         <NavLink className="SideNav-itemLink" activeClassName="is-selected" aria-current="page" to="/SegmentRefresh">Segment Refresh (Live)</NavLink>
       </li>
       <li className="SideNav-item">
-        <NavLink className="SideNav-itemLink" activeClassName="is-selected" aria-current="page" to="/JmeterTesting">Jmeter Testing (In Dev)</NavLink>
+        <NavLink className="SideNav-itemLink" activeClassName="is-selected" aria-current="page" to="/JmeterTesting">Jmeter Testing (Alpha)</NavLink>
       </li>
       <li className="SideNav-item">
         <NavLink className="SideNav-itemLink" activeClassName="is-selected" aria-current="page" to="/SandboxManagement">Sandbox Management (Demo)</NavLink>
