@@ -9,6 +9,7 @@ import {
 } from '@adobe/react-spectrum'
 import JmeterTestwoFolders from './JmeterTestwoFolders'
 import DeleteSandbox from './DeleteSandbox'
+import JmeterTestWfolders from './JmeterTestWfolders'
 
 function JmeterTesting(props) {
 
@@ -25,7 +26,7 @@ function JmeterTesting(props) {
                     <JmeterTestwoFolders ims={props.ims}/>
                     </Item>
                     <Item key="create">
-                        Coming Soon...
+                    <JmeterTestWfolders ims={props.ims}/>
                     </Item>
                 </TabPanels>
             </Tabs>
