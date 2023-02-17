@@ -16,6 +16,7 @@ import {
     Switch
 
 } from '@adobe/react-spectrum';
+import SandboxPicker from './SandboxPicker'
 
 function JmeterTestWfolders(props) {
     const [rows, setRows] = useState([{ textValue: '', sliders: [0, 0, 0] }]);
@@ -36,10 +37,73 @@ function JmeterTestWfolders(props) {
     const [linkError, setLinkError] = useState("yellow");
     const [folderError, setFolderError] = useState("yellow");
     const [total, setTotal] = useState(0);
+    const [sandboxName, setSandboxName] = useState("");
+    const [totalOpens, setTotalOpens] = useState(0);
+    const [mobExpPercentage, setMobExpPercentage] = useState(0);
+    const [numberTrackingLinks, setNumberTrackingLinks] = useState(0);
+    const [globalSetErrors, setGlobalSetErrors] = useState("yellow");
+
+    //Start setting the header object
+    const actionHeaders = {
+        'Content-Type': 'application/json'
+    }
+
+    const fetchConfig = {
+        headers: actionHeaders
+    }
+
+    if (window.location.hostname === 'localhost') {
+        actionHeaders['x-ow-extra-logging'] = 'on'
+    }
+
+    // set the authorization header and org from the ims props object
+    if (props.ims.token && !actionHeaders.authorization) {
+        actionHeaders.authorization = `Bearer ${props.ims.token}`
+    }
+    if (props.ims.org && !actionHeaders['x-gw-ims-org-id']) {
+        actionHeaders['x-gw-ims-org-id'] = props.ims.org
+    }
+
+    const payload = {
+        "jmeter": {
+            "file_ref": "",
+            "total_opens": 0,
+            "mobile_experience_pct": 0,
+            "folders": {
+                "first": {
+                    "name": "",
+                    "pct": 0,
+                    "desk_click": 0,
+                    "mob_click": 0
+                }
+            },
+            "links": {
+                
+            }
+        },
+        "options": {
+            "project": "jmeter_svpoc",
+            "sandbox_name": ""
+        }
+    }
+
+    function cleanSandboxName() {
+        if (sandboxName.indexOf('-') !== -1) {
+            const splitName = sandboxName.split('-');
+            const newName = splitName[0];
+            console.log(newName);
+            return newName;
+        } else {
+            return sandboxName;
+        }
+    }
 
     useEffect(() => {
         //validations:
         const _total = mirrorLink + navLink + offerLink + productLink + socialLink + unsubLink;
+        const sumOfFirstSliders = rows.reduce((acc, row) => acc + row.sliders[0], 0);
+        setTotal(sumOfFirstSliders);
+
         if (_total > 100) {
             setLinkError("negative");
         }
@@ -49,22 +113,55 @@ function JmeterTestWfolders(props) {
         if (_total === 100) {
             setLinkError("positive")
         }
-        if (total === 100) {
+        if (sumOfFirstSliders === 100) {
             setFolderError("positive")
         }
-        if (total > 100) {
+        if (sumOfFirstSliders > 100) {
             setFolderError("negative")
         }
 
-        if (total < 100) {
+        if (sumOfFirstSliders < 100) {
             setFolderError('yellow')
         }
-    }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink, total]);
 
-    const updateTotal = () => {
-        const sumOfFirstSliders = rows.reduce((acc, row) => acc + row.sliders[0], 0);
-        setTotal(sumOfFirstSliders);
+        if( sandboxName.length > 0 && 
+            totalOpens > 0 && 
+            mobExpPercentage > 0  && 
+            numberTrackingLinks > 0){
+                setGlobalSetErrors("positive");
+                console.log("positive")
+        }else{
+            setGlobalSetErrors("yellow");
+        }
+
+    }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink, rows, sandboxName, totalOpens, mobExpPercentage, numberTrackingLinks]);
+
+    const resetForm = () => {
+        setRows([{ textValue: '', sliders: [0, 0, 0] }]);
+        setTotal(0);
+        setMirrorLink(0);
+        setNavLink(0);
+        setOfferLink(0);
+        setProductLink(0);
+        setSocialLink(0);
+        setUnsubLink(0);
+        setMirrorPosition("");
+        setOfferPosition("");
+        setNavLinkPosition("");
+        setOfferPosition("");
+        setProductPosition("");
+        setSocialPosition("");
+        setUnsubPosition("");
+        setUnsubscribe(false);
+        setTotalOpens(0);
+        setMobExpPercentage(0);
+        setNumberTrackingLinks(0);
     };
+
+    //This handles our custom sandbox picker
+    function handleSandboxSelection(selection) {
+        setSandboxName(selection);
+    }
 
     const handleAddRow = () => {
         if (rows.length < 4) {
@@ -92,18 +189,160 @@ function JmeterTestWfolders(props) {
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        const sumOfFirstSliders = rows.reduce((acc, row) => acc + row.sliders[0], 0);
-        if (sumOfFirstSliders > 100) {
-            console.log('Sum of first sliders exceeds 100');
-        } else {
+
+        if (total === 100 && linkError === "positive" && globalSetErrors === "positive") {
             console.log(rows);
+            console.log(mirrorPosition);
+
+            const links = {
+                "count_tracked": numberTrackingLinks,
+                "mirror": {
+                    "pct": mirrorLink,
+                    "pos": (mirrorPosition.split(",").map(Number).length > 0) ? mirrorPosition.split(",").map(Number) : []
+                },
+                "navigation": {
+                    "pct": navLink,
+                    "pos": (navLinkPosition.split(",").map(Number).length > 0) ? navLinkPosition.split(",").map(Number) : []
+                },
+                "offer": {
+                    "pct": offerLink,
+                    "pos": (offerPosition.split(",").map(Number).length > 0) ? offerPosition.split(",").map(Number) : []
+                },
+                "product": {
+                    "pct": productLink,
+                    "pos": (productPosition.split(",").map(Number).length > 0) ? productPosition.split(",").map(Number) : []
+                },
+                "social": {
+                    "pct": socialLink,
+                    "pos": (socialPosition.split(",").map(Number).length > 0) ? socialPosition.split(",").map(Number) : []
+                },
+                "unsub": {
+                    "pct": unsubLink,
+                    "pos": (unsubPosition.split(",").map(Number).length > 0) ? unsubPosition.split(",").map(Number) : [],
+                    "persist": unsubscribe
+                }
+            }
+
+            payload.jmeter.links = links;
+            payload.jmeter.file_ref = `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`; 
+            payload.options.sandbox_name = sandboxName;
+            payload.jmeter.total_opens = totalOpens;
+            payload.jmeter.mobile_experience_pct = mobExpPercentage;
+
+            for (let index = 0; index < rows.length; index++) {
+                const element = rows[index];
+
+                if (index == 0) {
+                    payload.jmeter.folders.first.name = rows[index].textValue;
+                    payload.jmeter.folders.first.pct = rows[index].sliders[0];
+                    payload.jmeter.folders.first.desk_click = rows[index].sliders[1];
+                    payload.jmeter.folders.first.mob_click = rows[index].sliders[2];
+                }
+                if (index == 1) {
+                    payload.jmeter.folders.second ??= {};
+                    payload.jmeter.folders.second.name = rows[index].textValue;
+                    payload.jmeter.folders.second.pct = rows[index].sliders[0];
+                    payload.jmeter.folders.second.desk_click = rows[index].sliders[1];
+                    payload.jmeter.folders.second.mob_click = rows[index].sliders[2];
+                }
+                if (index == 2) {
+                    payload.jmeter.folders.third ??= {};
+                    payload.jmeter.folders.third.name = rows[index].textValue;
+                    payload.jmeter.folders.third.pct = rows[index].sliders[0];
+                    payload.jmeter.folders.third.desk_click = rows[index].sliders[1];
+                    payload.jmeter.folders.third.mob_click = rows[index].sliders[2];
+                }
+                if (index == 3) {
+                    payload.jmeter.folders.fourth ??= {};
+                    payload.jmeter.folders.fourth.name = rows[index].textValue;
+                    payload.jmeter.folders.fourth.pct = rows[index].sliders[0];
+                    payload.jmeter.folders.fourth.desk_click = rows[index].sliders[1];
+                    payload.jmeter.folders.fourth.mob_click = rows[index].sliders[2];
+                }
+            }
+
+            console.log(payload);
+
+            //resetForm();
+        } else {
+            console.log("something is wrong");
         }
     };
 
     return (
         <>
-            <Heading level={4}>
+            <Heading level={3}>
                 Run Jmeter Test with specific folder requirements
+            </Heading>
+            <Heading level={4}>
+            Global Settings:
+            </Heading>
+            <StatusLight variant={globalSetErrors}>You must provide all fields in this section.</StatusLight><br></br>
+            <SandboxPicker
+                contextualHelp={
+                    {
+                        "heading": "Sandbox Name",
+                        "body": "This will determine which inbox should we look for the emails."
+                    }}
+                ims={props.ims}
+                parentCallback={handleSandboxSelection} />
+            <div><br></br></div>
+            <div><br></br></div>
+            <Slider
+                isRequired={true}
+                onChange={setTotalOpens}
+                width="size-6000"
+                label="Total Opens"
+                maxValue={200}
+                value={totalOpens}
+                isFilled
+                contextualHelp={
+                    <ContextualHelp variant="info" placement="top start" flex>
+                        <Heading>Total Opens</Heading>
+                        <Content>
+                            <Text>
+                                Maximum 200.
+                            </Text>
+                        </Content>
+                    </ContextualHelp>} />
+            <Slider
+                onChange={setMobExpPercentage}
+                width="size-6000"
+                label="Mobile Experience %"
+                maxValue={100}
+                value={mobExpPercentage}
+                isFilled
+                contextualHelp={
+                    <ContextualHelp variant="info" placement="top start" flex>
+                        <Heading>Mobile Experience %</Heading>
+                        <Content>
+                            <Text>
+                                From the total opens how many will be mobile.
+                            </Text>
+                        </Content>
+                    </ContextualHelp>} />
+            <Slider
+                onChange={setNumberTrackingLinks}
+                width="size-6000"
+                label="# of Tracking Links"
+                maxValue={6}
+                value={numberTrackingLinks}
+                isFilled
+                contextualHelp={
+                    <ContextualHelp variant="info" placement="top start" flex>
+                        <Heading>Desktop Experience %</Heading>
+                        <Content>
+                            <Text>
+                                This refers to the desktop version reporting.
+                            </Text>
+                        </Content>
+                    </ContextualHelp>} />
+            <div><br></br></div>
+            <div><br></br></div>
+            <Divider />
+            <div><br></br></div>
+            <Heading level={4}>
+                Folder Tracking Configuration:
             </Heading>
             <StatusLight variant={folderError}>All Folder Tracking Percentages must provide a total of 100%</StatusLight><br></br>
             <Heading align="center" level={1} color="red">Total: {total} %</Heading>
@@ -112,7 +351,7 @@ function JmeterTestWfolders(props) {
                     <div key={i} >
                         <Flex direction="row" gap="size-500">
                             <TextField
-                                label={`Folder #${i + 1}`}
+                                label={`Folder #${i + 1} Name:`}
                                 value={row.textValue}
                                 onChange={(value) => handleTextValueChange(i, value)}
                                 width={500}
@@ -126,19 +365,19 @@ function JmeterTestWfolders(props) {
                                         <Slider
                                             label="Folder Tracking %:"
                                             value={row.sliders[0]}
-                                            onChange={(value) => { handleSliderChange(i, 0, value); updateTotal() }}
+                                            onChange={(value) => { handleSliderChange(i, 0, value); }}
                                             max={100}
                                         />
                                         <Slider
                                             label="Desktop Clicks %:"
                                             value={row.sliders[1]}
-                                            onChange={(value) => { handleSliderChange(i, 1, value); updateTotal() }}
+                                            onChange={(value) => { handleSliderChange(i, 1, value); }}
                                             max={100}
                                         />
                                         <Slider
                                             label="Mobile Clicks %:"
                                             value={row.sliders[2]}
-                                            onChange={(value) => { handleSliderChange(i, 2, value); updateTotal() }}
+                                            onChange={(value) => { handleSliderChange(i, 2, value); }}
                                             max={100}
                                         />
                                     </Content>
@@ -150,9 +389,10 @@ function JmeterTestWfolders(props) {
                 <ActionButton variant="primary" onPress={handleAddRow} marginTop="size-100">
                     Add Row
                 </ActionButton>
-                <br></br>
+                <div><br></br></div>
+                <div><br></br></div>
                 <Divider />
-                <br></br>
+                <div><br></br></div>
                 <Heading level={4}>
                     Link Tracking Configuration:
                 </Heading>
@@ -176,6 +416,7 @@ function JmeterTestWfolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setMirrorPosition}
+                        value={mirrorPosition}
                         label="Mirror Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -209,6 +450,7 @@ function JmeterTestWfolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setNavLinkPosition}
+                        value={navLinkPosition}
                         label="Nav Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -242,6 +484,7 @@ function JmeterTestWfolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setOfferPosition}
+                        value={offerPosition}
                         label="Offer Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -275,6 +518,7 @@ function JmeterTestWfolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setProductPosition}
+                        value={productPosition}
                         label="Product Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -308,6 +552,7 @@ function JmeterTestWfolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setSocialPosition}
+                        value={socialPosition}
                         label="Social Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -341,6 +586,7 @@ function JmeterTestWfolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setUnsubPosition}
+                        value={unsubPosition}
                         label="Unsubscribed Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
