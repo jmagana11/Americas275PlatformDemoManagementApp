@@ -5,6 +5,7 @@ import {
     Slider,
     ActionButton,
     DialogTrigger,
+    DialogContainer,
     Dialog,
     Form,
     Heading,
@@ -17,6 +18,8 @@ import {
 
 } from '@adobe/react-spectrum';
 import SandboxPicker from './SandboxPicker'
+import ConfirmDialogJmeter from './ConfirmDialogJmeter'
+import allActions from '../config.json'
 
 function JmeterTestWfolders(props) {
     const [rows, setRows] = useState([{ textValue: '', sliders: [0, 0, 0] }]);
@@ -42,6 +45,9 @@ function JmeterTestWfolders(props) {
     const [mobExpPercentage, setMobExpPercentage] = useState(0);
     const [numberTrackingLinks, setNumberTrackingLinks] = useState(0);
     const [globalSetErrors, setGlobalSetErrors] = useState("yellow");
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [_isJobLoading, set_IsJobLoading] = useState(false);
+    
 
     //Start setting the header object
     const actionHeaders = {
@@ -64,7 +70,7 @@ function JmeterTestWfolders(props) {
         actionHeaders['x-gw-ims-org-id'] = props.ims.org
     }
 
-    const payload = {
+    const payload = {"formBody":{
         "jmeter": {
             "file_ref": "",
             "total_opens": 0,
@@ -85,6 +91,14 @@ function JmeterTestWfolders(props) {
             "project": "jmeter_svpoc",
             "sandbox_name": ""
         }
+    }}
+
+    function confirmation(data) {
+        if (data) {
+            console.log('sandbox to be Created:', sandboxName)
+            setShowConfirmation(data);
+        }
+
     }
 
     function cleanSandboxName() {
@@ -187,6 +201,24 @@ function JmeterTestWfolders(props) {
         console.log(rows);
     };
 
+    function callAction(data){
+        fetchConfig['body'] = data;
+        fetchConfig['method'] = 'POST';
+        fetch(allActions.jmeterNFemailTracking, fetchConfig)
+            .then((response) => response.json())
+            .then((data) => {
+                if (data) { 
+                    setResult(JSON.stringify(data));
+                    set_IsJobLoading(false); 
+                    setShowConfirmation(true); 
+                    resetForm();
+                    setGlobalSetErrors('yellow');
+                    console.log('Form submitted successfully:', data);
+                }
+                
+            });
+    }
+
     const handleSubmit = (event) => {
         event.preventDefault();
 
@@ -223,34 +255,34 @@ function JmeterTestWfolders(props) {
                 }
             }
 
-            payload.jmeter.links = links;
-            payload.jmeter.file_ref = `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`; 
-            payload.options.sandbox_name = sandboxName;
-            payload.jmeter.total_opens = totalOpens;
-            payload.jmeter.mobile_experience_pct = mobExpPercentage;
+            payload.formBody.jmeter.links = links;
+            payload.formBody.jmeter.file_ref = `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`; 
+            payload.formBody.options.sandbox_name = sandboxName;
+            payload.formBody.jmeter.total_opens = totalOpens;
+            payload.formBody.jmeter.mobile_experience_pct = mobExpPercentage;
 
             for (let index = 0; index < rows.length; index++) {
                 const element = rows[index];
 
                 if (index == 0) {
-                    payload.jmeter.folders.first.name = rows[index].textValue;
-                    payload.jmeter.folders.first.pct = rows[index].sliders[0];
-                    payload.jmeter.folders.first.desk_click = rows[index].sliders[1];
-                    payload.jmeter.folders.first.mob_click = rows[index].sliders[2];
+                    payload.formBody.jmeter.folders.first.name = rows[index].textValue;
+                    payload.formBody.jmeter.folders.first.pct = rows[index].sliders[0];
+                    payload.formBody.jmeter.folders.first.desk_click = rows[index].sliders[1];
+                    payload.formBody.jmeter.folders.first.mob_click = rows[index].sliders[2];
                 }
                 if (index == 1) {
-                    payload.jmeter.folders.second ??= {};
-                    payload.jmeter.folders.second.name = rows[index].textValue;
-                    payload.jmeter.folders.second.pct = rows[index].sliders[0];
-                    payload.jmeter.folders.second.desk_click = rows[index].sliders[1];
-                    payload.jmeter.folders.second.mob_click = rows[index].sliders[2];
+                    payload.formBody.jmeter.folders.second ??= {};
+                    payload.formBody.jmeter.folders.second.name = rows[index].textValue;
+                    payload.formBody.jmeter.folders.second.pct = rows[index].sliders[0];
+                    payload.formBody.jmeter.folders.second.desk_click = rows[index].sliders[1];
+                    payload.formBody.jmeter.folders.second.mob_click = rows[index].sliders[2];
                 }
                 if (index == 2) {
-                    payload.jmeter.folders.third ??= {};
-                    payload.jmeter.folders.third.name = rows[index].textValue;
-                    payload.jmeter.folders.third.pct = rows[index].sliders[0];
-                    payload.jmeter.folders.third.desk_click = rows[index].sliders[1];
-                    payload.jmeter.folders.third.mob_click = rows[index].sliders[2];
+                    payload.formBody.jmeter.folders.third ??= {};
+                    payload.formBody.jmeter.folders.third.name = rows[index].textValue;
+                    payload.formBody.jmeter.folders.third.pct = rows[index].sliders[0];
+                    payload.formBody.jmeter.folders.third.desk_click = rows[index].sliders[1];
+                    payload.formBody.jmeter.folders.third.mob_click = rows[index].sliders[2];
                 }
                 if (index == 3) {
                     payload.jmeter.folders.fourth ??= {};
@@ -260,10 +292,8 @@ function JmeterTestWfolders(props) {
                     payload.jmeter.folders.fourth.mob_click = rows[index].sliders[2];
                 }
             }
-
             console.log(payload);
-
-            //resetForm();
+            callAction(JSON.stringify(payload));
         } else {
             console.log("something is wrong");
         }
@@ -387,7 +417,7 @@ function JmeterTestWfolders(props) {
                     </div>
                 ))}
                 <ActionButton variant="primary" onPress={handleAddRow} marginTop="size-100">
-                    Add Row
+                    Add 1+ Folder
                 </ActionButton>
                 <div><br></br></div>
                 <div><br></br></div>
@@ -622,7 +652,13 @@ function JmeterTestWfolders(props) {
                 <ActionButton variant="primary" type="submit" marginTop="size-200">
                     Submit
                 </ActionButton>
+                {_isJobLoading && (
+                    <ProgressBar aria-label="Loading.." isIndeterminate={true} />
+                )}
             </Form>
+            <DialogContainer onDismiss={() => setShowConfirmation(null)}>
+                {showConfirmation && (<ConfirmDialogJmeter context={sandboxName} message={result} parentCallback={confirmation} />)}
+            </DialogContainer>
         </>
     );
 }
