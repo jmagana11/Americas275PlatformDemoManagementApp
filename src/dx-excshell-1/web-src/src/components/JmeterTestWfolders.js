@@ -47,7 +47,7 @@ function JmeterTestWfolders(props) {
     const [globalSetErrors, setGlobalSetErrors] = useState("yellow");
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [_isJobLoading, set_IsJobLoading] = useState(false);
-    
+
 
     //Start setting the header object
     const actionHeaders = {
@@ -70,28 +70,30 @@ function JmeterTestWfolders(props) {
         actionHeaders['x-gw-ims-org-id'] = props.ims.org
     }
 
-    const payload = {"formBody":{
-        "jmeter": {
-            "file_ref": "",
-            "total_opens": 0,
-            "mobile_experience_pct": 0,
-            "folders": {
-                "first": {
-                    "name": "",
-                    "pct": 0,
-                    "desk_click": 0,
-                    "mob_click": 0
+    const payload = {
+        "formBody": {
+            "jmeter": {
+                "file_ref": "",
+                "total_opens": 0,
+                "mobile_experience_pct": 0,
+                "folders": {
+                    "first": {
+                        "name": "",
+                        "pct": 0,
+                        "desk_click": 0,
+                        "mob_click": 0
+                    }
+                },
+                "links": {
+
                 }
             },
-            "links": {
-                
+            "options": {
+                "project": "jmeter_svpoc",
+                "sandbox_name": ""
             }
-        },
-        "options": {
-            "project": "jmeter_svpoc",
-            "sandbox_name": ""
         }
-    }}
+    }
 
     function confirmation(data) {
         if (data) {
@@ -138,13 +140,13 @@ function JmeterTestWfolders(props) {
             setFolderError('yellow')
         }
 
-        if( sandboxName.length > 0 && 
-            totalOpens > 0 && 
-            mobExpPercentage > 0  && 
-            numberTrackingLinks > 0){
-                setGlobalSetErrors("positive");
-                console.log("positive")
-        }else{
+        if (sandboxName.length > 0 &&
+            totalOpens > 0 &&
+            mobExpPercentage > 0 &&
+            numberTrackingLinks > 0) {
+            setGlobalSetErrors("positive");
+            console.log("positive")
+        } else {
             setGlobalSetErrors("yellow");
         }
 
@@ -201,22 +203,32 @@ function JmeterTestWfolders(props) {
         console.log(rows);
     };
 
-    function callAction(data){
+    function callAction(data) {
         fetchConfig['body'] = data;
         fetchConfig['method'] = 'POST';
-        fetch(allActions.jmeterNFemailTracking, fetchConfig)
-            .then((response) => response.json())
-            .then((data) => {
-                if (data) { 
-                    setResult(JSON.stringify(data));
-                    set_IsJobLoading(false); 
-                    setShowConfirmation(true); 
-                    resetForm();
-                    setGlobalSetErrors('yellow');
-                    console.log('Form submitted successfully:', data);
-                }
-                
-            });
+
+        try {
+            fetch(allActions.jmeterNFemailTracking, fetchConfig)
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.pid) {
+                        setResult(JSON.stringify(data));
+                        set_IsJobLoading(false);
+                        setShowConfirmation(true);
+                        resetForm();
+                        setGlobalSetErrors('yellow');
+                        console.log('Form submitted successfully:', data);
+                    } else {
+                        set_IsJobLoading(false);
+                        setResult(data);
+                        setShowConfirmation(true);
+                    }
+                });
+        } catch (e) {
+            set_IsJobLoading(false);
+            setResult(e);
+            setShowConfirmation(true);
+        }
     }
 
     const handleSubmit = (event) => {
@@ -230,33 +242,33 @@ function JmeterTestWfolders(props) {
                 "count_tracked": numberTrackingLinks,
                 "mirror": {
                     "pct": mirrorLink,
-                    "pos": (mirrorPosition.split(",").map(Number).length > 0) ? mirrorPosition.split(",").map(Number) : []
+                    "pos": (mirrorPosition.trim() !== "") ? mirrorPosition.split(",").map(Number) : []
                 },
                 "navigation": {
                     "pct": navLink,
-                    "pos": (navLinkPosition.split(",").map(Number).length > 0) ? navLinkPosition.split(",").map(Number) : []
+                    "pos": (navLinkPosition.trim() !== "") ? navLinkPosition.split(",").map(Number) : []
                 },
                 "offer": {
                     "pct": offerLink,
-                    "pos": (offerPosition.split(",").map(Number).length > 0) ? offerPosition.split(",").map(Number) : []
+                    "pos": (offerPosition.trim() !== "") ? offerPosition.split(",").map(Number) : []
                 },
                 "product": {
                     "pct": productLink,
-                    "pos": (productPosition.split(",").map(Number).length > 0) ? productPosition.split(",").map(Number) : []
+                    "pos": (productPosition.trim() !== "") ? productPosition.split(",").map(Number) : []
                 },
                 "social": {
                     "pct": socialLink,
-                    "pos": (socialPosition.split(",").map(Number).length > 0) ? socialPosition.split(",").map(Number) : []
+                    "pos": (socialPosition.trim() !== "") ? socialPosition.split(",").map(Number) : []
                 },
                 "unsub": {
                     "pct": unsubLink,
-                    "pos": (unsubPosition.split(",").map(Number).length > 0) ? unsubPosition.split(",").map(Number) : [],
+                    "pos": (unsubPosition.trim() !== "") ? unsubPosition.split(",").map(Number) : [],
                     "persist": unsubscribe
                 }
             }
 
             payload.formBody.jmeter.links = links;
-            payload.formBody.jmeter.file_ref = `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`; 
+            payload.formBody.jmeter.file_ref = `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`;
             payload.formBody.options.sandbox_name = sandboxName;
             payload.formBody.jmeter.total_opens = totalOpens;
             payload.formBody.jmeter.mobile_experience_pct = mobExpPercentage;
@@ -285,11 +297,11 @@ function JmeterTestWfolders(props) {
                     payload.formBody.jmeter.folders.third.mob_click = rows[index].sliders[2];
                 }
                 if (index == 3) {
-                    payload.jmeter.folders.fourth ??= {};
-                    payload.jmeter.folders.fourth.name = rows[index].textValue;
-                    payload.jmeter.folders.fourth.pct = rows[index].sliders[0];
-                    payload.jmeter.folders.fourth.desk_click = rows[index].sliders[1];
-                    payload.jmeter.folders.fourth.mob_click = rows[index].sliders[2];
+                    payload.formBody.jmeter.folders.fourth ??= {};
+                    payload.formBody.jmeter.folders.fourth.name = rows[index].textValue;
+                    payload.formBody.jmeter.folders.fourth.pct = rows[index].sliders[0];
+                    payload.formBody.jmeter.folders.fourth.desk_click = rows[index].sliders[1];
+                    payload.formBody.jmeter.folders.fourth.mob_click = rows[index].sliders[2];
                 }
             }
             console.log(payload);
@@ -305,7 +317,7 @@ function JmeterTestWfolders(props) {
                 Run Jmeter Test with specific folder requirements
             </Heading>
             <Heading level={4}>
-            Global Settings:
+                Global Settings:
             </Heading>
             <StatusLight variant={globalSetErrors}>You must provide all fields in this section.</StatusLight><br></br>
             <SandboxPicker
@@ -355,7 +367,7 @@ function JmeterTestWfolders(props) {
                 onChange={setNumberTrackingLinks}
                 width="size-6000"
                 label="# of Tracking Links"
-                maxValue={6}
+                maxValue={20}
                 value={numberTrackingLinks}
                 isFilled
                 contextualHelp={

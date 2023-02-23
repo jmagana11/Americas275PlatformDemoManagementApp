@@ -19,7 +19,7 @@ function ConfirmDialogJmeter(props) {
                 <Heading>Status</Heading>
                 <Divider />
                 <Content>
-                    Congratulations! Your report request has been generated.<br></br>
+                    {(JSON.parse(props.message).pid) ? `Congratulations! Your report request has been generated.` : 'Something went wrong'}<br></br>
                     {props.message}
                 </Content>
                 <ButtonGroup>

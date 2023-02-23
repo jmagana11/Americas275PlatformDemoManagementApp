@@ -47,7 +47,6 @@ function JmeterTestwoFolders(props) {
         }
 
         if( sandboxName.length > 0 && 
-            logFile.length > 0  && 
             totalOpens > 0 && 
             mobExpPercentage > 0  && 
             desktopClicks > 0 && 
@@ -61,7 +60,6 @@ function JmeterTestwoFolders(props) {
 
     function resetState(){
         //we reset the state after a successful submission...
-        setSandboxName("");
         setMirrorLink(0);
         setNavLink(0);
         setOfferLink(0);
@@ -82,6 +80,17 @@ function JmeterTestwoFolders(props) {
         setSocialPosition("");
         setUnsubPosition("");
         setUnsubscribe(false);
+    }
+
+    function cleanSandboxName() {
+        if (sandboxName.indexOf('-') !== -1) {
+            const splitName = sandboxName.split('-');
+            const newName = splitName[0];
+            console.log(newName);
+            return newName;
+        } else {
+            return sandboxName;
+        }
     }
 
     //Start setting the header object
@@ -118,7 +127,7 @@ function JmeterTestwoFolders(props) {
 
         const data = { "formBody": {
                 "jmeter": {
-                    "file_ref": logFile,
+                    "file_ref": `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`,
                     "total_opens": totalOpens,
                     "mobile_experience_pct": mobExpPercentage,
                     "desk_clicks_pct": desktopClicks,
@@ -127,27 +136,27 @@ function JmeterTestwoFolders(props) {
                         "count_tracked": numberTrackingLinks,
                         "mirror": {
                             "pct": mirrorLink,
-                            "pos": (mirrorPosition.split(",").map(Number).length > 0) ? mirrorPosition.split(",").map(Number) : []
+                            "pos": (mirrorPosition.trim() !== "") ? mirrorPosition.split(",").map(Number) : []
                         },
                         "navigation": {
                             "pct": navLink,
-                            "pos": (navLinkPosition.split(",").map(Number).length > 0) ? navLinkPosition.split(",").map(Number) : []
+                            "pos": (navLinkPosition.trim() !== "") ? navLinkPosition.split(",").map(Number) : []
                         },
                         "offer": {
                             "pct": offerLink,
-                            "pos": (offerPosition.split(",").map(Number).length > 0) ? offerPosition.split(",").map(Number) : []
+                            "pos": (offerPosition.trim() !== "") ? offerPosition.split(",").map(Number) : []
                         },
                         "product": {
                             "pct": productLink,
-                            "pos": (productPosition.split(",").map(Number).length > 0) ? productPosition.split(",").map(Number) : []
+                            "pos": (productPosition.trim() !== "") ? productPosition.split(",").map(Number) : []
                         },
                         "social": {
                             "pct": socialLink,
-                            "pos": (socialPosition.split(",").map(Number).length > 0) ? socialPosition.split(",").map(Number) : []
+                            "pos": (socialPosition.trim() !== "") ? socialPosition.split(",").map(Number) : []
                         },
                         "unsub": {
                             "pct": unsubLink,
-                            "pos": (unsubPosition.split(",").map(Number).length > 0) ? unsubPosition.split(",").map(Number) : [],
+                            "pos": (unsubPosition.trim() !== "") ? unsubPosition.split(",").map(Number) : [],
                             "persist": unsubscribe
                         }
                     }
@@ -175,19 +184,29 @@ function JmeterTestwoFolders(props) {
     function callAction(data){
         fetchConfig['body'] = data;
         fetchConfig['method'] = 'POST';
+    try{
         fetch(allActions.jmeterNFemailTracking, fetchConfig)
             .then((response) => response.json())
             .then((data) => {
-                if (data) { 
+                if (data.pid) { 
                     setResult(JSON.stringify(data));
                     set_IsJobLoading(false); 
                     setShowConfirmation(true); 
                     resetState(); 
                     setGlobalSetErrors('yellow');
                     console.log('Form submitted successfully:', data);
+                } else{
+                    setResult(JSON.stringify(data));
+                    set_IsJobLoading(false); 
+                    setShowConfirmation(true); 
                 }
                 
             });
+        } catch(e){
+            setResult(JSON.stringify(data));
+            set_IsJobLoading(false); 
+            setShowConfirmation(true); 
+        }
     }
 
     return (
@@ -205,23 +224,7 @@ function JmeterTestwoFolders(props) {
                             }}
                         ims={props.ims}
                         parentCallback={handleSandboxSelection} />
-                </Flex>
-                <Flex direction="row">
-                    <TextField
-                        onChange={setLogFile}
-                        value={logFile}
-                        width="size-6000"
-                        label="Log File Name"
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Log File</Heading>
-                                <Content>
-                                    <Text>
-                                        Name to be used for logging purposes.
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>} />
-                </Flex>
+                </Flex><br></br>
                 <Flex direction="row">
                     <Slider
                         isRequired={true}
@@ -300,7 +303,7 @@ function JmeterTestwoFolders(props) {
                         onChange={setNumberTrackingLinks}
                         width="size-6000"
                         label="# of Tracking Links"
-                        maxValue={100}
+                        maxValue={20}
                         value={numberTrackingLinks}
                         isFilled
                         contextualHelp={
@@ -339,6 +342,7 @@ function JmeterTestwoFolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setMirrorPosition}
+                        value={mirrorPosition}
                         label="Mirror Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -372,6 +376,7 @@ function JmeterTestwoFolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setNavLinkPosition}
+                        value={navLinkPosition}
                         label="Nav Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -405,6 +410,7 @@ function JmeterTestwoFolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setOfferPosition}
+                        value={offerPosition}
                         label="Offer Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -439,6 +445,7 @@ function JmeterTestwoFolders(props) {
                     <TextField
                         onChange={setProductPosition}
                         label="Product Link Positions"
+                        value={productPosition}
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
                                 <Heading>Product Link Tracking %</Heading>
@@ -471,6 +478,7 @@ function JmeterTestwoFolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setSocialPosition}
+                        value={socialPosition}
                         label="Social Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
@@ -504,6 +512,7 @@ function JmeterTestwoFolders(props) {
                             </ContextualHelp>} />
                     <TextField
                         onChange={setUnsubPosition}
+                        value={unsubPosition}
                         label="Unsubscribed Link Positions"
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
