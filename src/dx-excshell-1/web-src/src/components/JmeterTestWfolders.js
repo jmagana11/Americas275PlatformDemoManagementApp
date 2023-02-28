@@ -47,6 +47,8 @@ function JmeterTestWfolders(props) {
     const [globalSetErrors, setGlobalSetErrors] = useState("yellow");
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [_isJobLoading, set_IsJobLoading] = useState(false);
+    const [manualMode, setManualMode] = useState(false);
+    const [logFileName, setLogFileName] = useState("");
 
 
     //Start setting the header object
@@ -268,7 +270,7 @@ function JmeterTestWfolders(props) {
             }
 
             payload.formBody.jmeter.links = links;
-            payload.formBody.jmeter.file_ref = `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`;
+            payload.formBody.jmeter.file_ref = manualMode ? logFileName : `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`;
             payload.formBody.options.sandbox_name = sandboxName;
             payload.formBody.jmeter.total_opens = totalOpens;
             payload.formBody.jmeter.mobile_experience_pct = mobExpPercentage;
@@ -320,14 +322,37 @@ function JmeterTestWfolders(props) {
                 Global Settings:
             </Heading>
             <StatusLight variant={globalSetErrors}>You must provide all fields in this section.</StatusLight><br></br>
-            <SandboxPicker
-                contextualHelp={
-                    {
-                        "heading": "Sandbox Name",
-                        "body": "This will determine which inbox should we look for the emails."
-                    }}
-                ims={props.ims}
-                parentCallback={handleSandboxSelection} />
+            <Flex direction="row">
+                    <Switch
+                        onChange={setManualMode}
+                        value={manualMode}>Would you like to enable manual mode?
+                    </Switch>
+                    <ContextualHelp variant="info">
+                        <Heading>Set Manual Mode</Heading>
+                        <Content>
+                            <Text>
+                                Enable the switch if you do not belong to the POC team, or your sandbox is outside of the Adobe-Demo-Americas-275 org.
+                            </Text>
+                        </Content>
+                    </ContextualHelp>
+                </Flex>
+                <br></br>
+                {manualMode ? 
+                                <Flex direction="row" gap="size-100">
+                                    <TextField width="size-6000"  isRequired={true} label="Sandbox Name:" onChange={setSandboxName} value={sandboxName} />
+                                    <TextField width="size-6000"  isRequired={true} label="Log File Name:" onChange={setLogFileName} value={logFileName}/>
+                                </Flex>
+                            :
+                                <Flex direction="row">
+                                    <SandboxPicker
+                                        contextualHelp={
+                                            {
+                                                "heading": "Sandbox Name",
+                                                "body": "This will determine which inbox should we look for the emails."
+                                            }}
+                                        ims={props.ims}
+                                        parentCallback={handleSandboxSelection} />
+                                </Flex>}
             <div><br></br></div>
             <div><br></br></div>
             <Slider

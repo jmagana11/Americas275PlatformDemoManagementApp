@@ -31,6 +31,8 @@ function JmeterTestwoFolders(props) {
     const [unsubscribe, setUnsubscribe] = useState(false);
     const [result, setResult] = useState('');
     const [globalSetErrors, setGlobalSetErrors] = useState("yellow");
+    const [manualMode, setManualMode] = useState(false);
+    const [logFileName, setLogFileName] = useState("");
 
     useEffect(() => {
         //validations:
@@ -46,19 +48,19 @@ function JmeterTestwoFolders(props) {
             setLinkError("positive")
         }
 
-        if( sandboxName.length > 0 && 
-            totalOpens > 0 && 
-            mobExpPercentage > 0  && 
-            desktopClicks > 0 && 
-            mobileClicks > 0  && 
-            numberTrackingLinks > 0){
-                
-                setGlobalSetErrors("positive");
-                console.log("positive")
+        if (sandboxName.length > 0 &&
+            totalOpens > 0 &&
+            mobExpPercentage > 0 &&
+            desktopClicks > 0 &&
+            mobileClicks > 0 &&
+            numberTrackingLinks > 0) {
+
+            setGlobalSetErrors("positive");
+            console.log("positive")
         }
     }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink, sandboxName, logFile, totalOpens, mobExpPercentage, desktopClicks, mobileClicks, numberTrackingLinks]);
 
-    function resetState(){
+    function resetState() {
         //we reset the state after a successful submission...
         setMirrorLink(0);
         setNavLink(0);
@@ -125,9 +127,10 @@ function JmeterTestwoFolders(props) {
     function handleFormSubmission(event) {
         event.preventDefault();
 
-        const data = { "formBody": {
+        const data = {
+            "formBody": {
                 "jmeter": {
-                    "file_ref": `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`,
+                    "file_ref": manualMode ? logFileName : `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`,
                     "total_opens": totalOpens,
                     "mobile_experience_pct": mobExpPercentage,
                     "desk_clicks_pct": desktopClicks,
@@ -181,31 +184,31 @@ function JmeterTestwoFolders(props) {
         setSandboxName(selection);
     }
 
-    function callAction(data){
+    function callAction(data) {
         fetchConfig['body'] = data;
         fetchConfig['method'] = 'POST';
-    try{
-        fetch(allActions.jmeterNFemailTracking, fetchConfig)
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.pid) { 
-                    setResult(JSON.stringify(data));
-                    set_IsJobLoading(false); 
-                    setShowConfirmation(true); 
-                    resetState(); 
-                    setGlobalSetErrors('yellow');
-                    console.log('Form submitted successfully:', data);
-                } else{
-                    setResult(JSON.stringify(data));
-                    set_IsJobLoading(false); 
-                    setShowConfirmation(true); 
-                }
-                
-            });
-        } catch(e){
+        try {
+            fetch(allActions.jmeterNFemailTracking, fetchConfig)
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.pid) {
+                        setResult(JSON.stringify(data));
+                        set_IsJobLoading(false);
+                        setShowConfirmation(true);
+                        resetState();
+                        setGlobalSetErrors('yellow');
+                        console.log('Form submitted successfully:', data);
+                    } else {
+                        setResult(JSON.stringify(data));
+                        set_IsJobLoading(false);
+                        setShowConfirmation(true);
+                    }
+
+                });
+        } catch (e) {
             setResult(JSON.stringify(data));
-            set_IsJobLoading(false); 
-            setShowConfirmation(true); 
+            set_IsJobLoading(false);
+            setShowConfirmation(true);
         }
     }
 
@@ -216,15 +219,36 @@ function JmeterTestwoFolders(props) {
             <StatusLight variant={globalSetErrors}>You must provide all fields in this section.</StatusLight><br></br>
             <Form isRequired={true} onSubmit={handleFormSubmission}>
                 <Flex direction="row">
-                    <SandboxPicker
-                        contextualHelp={
-                            {
-                                "heading": "Sandbox Name",
-                                "body": "This will determine which inbox should we look for the emails."
-                            }}
-                        ims={props.ims}
-                        parentCallback={handleSandboxSelection} />
-                </Flex><br></br>
+                    <Switch
+                        onChange={setManualMode}
+                        value={manualMode}>Would you like to enable manual mode?
+                    </Switch>
+                    <ContextualHelp variant="info">
+                        <Heading>Set Manual Mode</Heading>
+                        <Content>
+                            <Text>
+                                Enable the switch if you do not belong to the POC team, or your sandbox is outside of the Adobe-Demo-Americas-275 org.
+                            </Text>
+                        </Content>
+                    </ContextualHelp>
+                </Flex>
+                {manualMode ? 
+                                <Flex direction="row" gap="size-100">
+                                    <TextField width="size-6000"  isRequired={true} label="Sandbox Name:" onChange={setSandboxName} value={sandboxName} />
+                                    <TextField width="size-6000"  isRequired={true} label="Log File Name:" onChange={setLogFileName} value={logFileName}/>
+                                </Flex>
+                            :
+                                <Flex direction="row">
+                                    <SandboxPicker
+                                        contextualHelp={
+                                            {
+                                                "heading": "Sandbox Name",
+                                                "body": "This will determine which inbox should we look for the emails."
+                                            }}
+                                        ims={props.ims}
+                                        parentCallback={handleSandboxSelection} />
+                                </Flex>}
+                <br></br>
                 <Flex direction="row">
                     <Slider
                         isRequired={true}
