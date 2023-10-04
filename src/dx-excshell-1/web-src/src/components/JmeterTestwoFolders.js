@@ -130,7 +130,7 @@ function JmeterTestwoFolders(props) {
         const data = {
             "formBody": {
                 "jmeter": {
-                    "file_ref": manualMode ? logFileName : `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`,
+                    "file_ref": manualMode ? logFileName : `${cleanSandboxName()}.jmx`,
                     "total_opens": totalOpens,
                     "mobile_experience_pct": mobExpPercentage,
                     "desk_clicks_pct": desktopClicks,
