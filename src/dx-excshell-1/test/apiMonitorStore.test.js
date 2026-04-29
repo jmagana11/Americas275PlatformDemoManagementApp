@@ -6,7 +6,9 @@ const {
   getMonitorSessionUserCandidates,
   getSessionBlobPath,
   getWebhookEventPrefix,
+  listMonitorSessions,
   listWebhookEvents,
+  updateMonitorSessionDescription,
   updateWebhookSessionSummary,
   writeMonitorSession,
   writeWebhookEvent
@@ -217,5 +219,54 @@ describe('API Monitor blob storage helper', () => {
     expect(clearedSession.webhookLogs).toEqual([])
     expect(clearedSession.session.webhookCount).toBe(0)
     expect(mocks.blobs.has(otherSessionPath)).toBe(true)
+  })
+
+  test('lists API Monitor sessions for a user identifier with blank legacy descriptions', async () => {
+    const olderPath = getSessionBlobPath('current_user', 'session-older')
+    const newerPath = getSessionBlobPath('current_user', 'session-newer')
+    const mocks = createMemoryBlobService({
+      [olderPath]: sessionData('session-older', 'current_user', 1),
+      [newerPath]: {
+        ...sessionData('session-newer', 'current_user', 2),
+        session: {
+          ...sessionData('session-newer', 'current_user', 2).session,
+          description: 'Demo session',
+          lastActivity: '2026-04-29T02:00:00.000Z'
+        }
+      }
+    })
+
+    const result = await listMonitorSessions(mocks.blobServiceClient, 'current_user')
+
+    expect(result.totalCount).toBe(2)
+    expect(result.sessions.map((session) => session.sessionId)).toEqual(['session-newer', 'session-older'])
+    expect(result.sessions[0]).toMatchObject({
+      description: 'Demo session',
+      requestCount: 2
+    })
+    expect(result.sessions[1].description).toBe('')
+  })
+
+  test('updates API Monitor session descriptions without changing the blob path', async () => {
+    const sessionPath = getSessionBlobPath('current_user', 'session-1')
+    const mocks = createMemoryBlobService({
+      [sessionPath]: sessionData('session-1', 'current_user', 1)
+    })
+
+    const result = await updateMonitorSessionDescription(
+      mocks.blobServiceClient,
+      'current_user',
+      'session-1',
+      'Regression run',
+      { timestamp: '2026-04-29T03:00:00.000Z' }
+    )
+    const stored = JSON.parse(mocks.blobs.get(sessionPath))
+
+    expect(result).toMatchObject({
+      sessionId: 'session-1',
+      description: 'Regression run'
+    })
+    expect(stored.session.description).toBe('Regression run')
+    expect(mocks.blobs.has(sessionPath)).toBe(true)
   })
 })

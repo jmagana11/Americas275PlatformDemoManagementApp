@@ -15,7 +15,8 @@ The app is a React Spectrum single-page application running in Experience Cloud 
 - Stores API Monitor inbound webhook events as individual Azure Blob JSON files under the session event prefix, while keeping the session JSON blob as a compatibility and summary record.
 - Resolves service credentials server-side through App Builder inputs/environment variables, not from frontend source.
 - Provides non-secret organization metadata from backend config so User Management, Content Template Migrator, and Segment Refresh share one org picker model.
-- Uses a shared frontend feature registry for route and sidebar metadata, plus named access-control groups for protected screens.
+- Uses a shared frontend feature registry for route and sidebar metadata, plus dynamic access-control policies backed by Azure Blob Storage.
+- Provides an Administration screen for managing feature access and API Monitor session descriptions for reconnecting to known session IDs.
 
 ## Architecture
 
@@ -41,7 +42,8 @@ Important pieces:
 - `components/SideBar.js` renders navigation groups from the feature registry.
 - `index.js` uses a non-secret mock IMS profile for local raw mode so access-controlled navigation is visible when the app is opened outside Experience Cloud Shell.
 - `utils/actionUrls.js` centralizes Runtime action URL generation.
-- `utils/accessControl.js` gates protected screens by IMS/user context using named groups, feature policies, and tolerant IMS identity resolution.
+- `utils/accessControl.js` gates screens by IMS/user context using backend policy results with static defaults as a fallback.
+- `components/Administration.js` manages feature policy mode and allowlisted emails for every registry feature.
 - `utils/orgConfig.js` centralizes frontend org picker metadata and falls back to the current MA1HOL/POT5HOL labels if backend metadata cannot load.
 
 ### Backend Actions
@@ -52,7 +54,7 @@ The Runtime actions live under:
 src/dx-excshell-1/actions
 ```
 
-The production manifest currently declares 39 actions in:
+The production manifest currently declares 40 actions in:
 
 ```text
 src/dx-excshell-1/ext.config.yaml
@@ -81,12 +83,21 @@ Important credential/config groups:
 - Adobe Runtime and App Builder values: `AIO_runtime_*`
 - Default AEP action credentials: `AEP_*`
 - Azure Blob Storage: `AZURE_BLOB_URL`, `AZURE_SAS_TOKEN`
+- Access administration: `administrator`, defaulting locally to `jmagana@adobe.com`
 - Azure OpenAI and Vision: `AZURE_OPENAI_*`, `AZURE_VISION_*`
 - Organization-specific configuration: `MA1HOL_*`, `POT5HOL_*`
 - Campaign trigger configuration: `MA1HOL_*` Adobe credentials plus `CAMPAIGN_TRIGGER_SCOPE` and `CAMPAIGN_TRIGGER_SANDBOX`
 - Shared Microsoft Graph app role: `MS_APP_ROLE_ID`
 
 Runtime package inputs are injected into action `params` by App Builder. Logging and monitor actions must redact or filter Runtime inputs before storing or rendering captured requests.
+
+Dynamic feature access policies are stored at:
+
+```text
+access-control/policies.json
+```
+
+The bootstrap administrator from `administrator` is always retained in the Administration allowlist.
 
 Shared backend config resolution lives in:
 
@@ -115,6 +126,8 @@ api-monitor/events/<sessionId>/webhooks/
 ```
 
 The older session-embedded `webhookLogs` array remains readable and clearable for compatibility with existing session blobs.
+
+API Monitor session descriptions are stored on `session.description` in the existing session blob. Older sessions without a description display an empty value.
 
 ## Local Development
 
@@ -166,6 +179,7 @@ Before merging or staging, test the main workflows locally:
 - Content Template Migrator sandbox/template flows
 - AI prompt/image paths
 - API Monitor webhook capture and redaction
+- API Monitor session list, description edit, and Connect behavior for the current user identifier
 - API Monitor inbound webhook burst capture: send at least 20 quick POST requests to the generated webhook URL, verify 20 inbound rows, clear inbound logs, then verify a second burst appears completely.
 - API Proxy request logging and redaction
 - File upload/download

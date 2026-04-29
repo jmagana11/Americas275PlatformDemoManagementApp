@@ -43,6 +43,7 @@ Shape:
   "session": {
     "id": "redacted-session-id",
     "userId": "redacted-user",
+    "description": "Optional session note",
     "created": "2026-04-29T00:00:00.000Z",
     "requestCount": 1,
     "webhookCount": 2,
@@ -85,6 +86,8 @@ Shape:
 
 Inbound webhook events are stored per event to avoid concurrent write loss.
 
+API Monitor session descriptions are stored as `session.description` in the same session blob. Existing session blobs without this field are treated as an empty description by the UI and listing action.
+
 Path:
 
 ```text
@@ -121,6 +124,39 @@ Shape:
   }
 }
 ```
+
+## Access Policy Document
+
+Path:
+
+```text
+access-control/policies.json
+```
+
+Shape:
+
+```json
+{
+  "storageSchemaVersion": 1,
+  "featurePolicies": {
+    "apiMonitor": {
+      "mode": "public",
+      "allowedEmails": []
+    },
+    "administration": {
+      "mode": "allowlist",
+      "allowedEmails": [
+        "jmagana@adobe.com"
+      ]
+    }
+  },
+  "createdAt": "2026-04-29T00:00:00.000Z",
+  "updatedAt": "2026-04-29T00:00:00.000Z",
+  "updatedBy": "redacted-user"
+}
+```
+
+The `administrator` Runtime input is always retained in the `administration` allowlist during normalization.
 
 ## API Proxy User Session Document
 

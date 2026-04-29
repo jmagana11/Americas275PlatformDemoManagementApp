@@ -27,6 +27,105 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-04-29 - AEP Profile Injector Unmount Warning Fix
+
+Branch: `codex/admin-ui-api-monitor-sessions`
+
+Milestone: Targeted frontend bugfix during Administration/API Monitor session milestone
+
+Intent:
+- Fix the development warning in `AEPProfileInjectorSimplified`: "Can't perform a React state update on an unmounted component."
+- Scope the fix to async mount-time session/sandbox loading and notification cleanup.
+- Preserve AEP Profile Injector behavior and avoid route/action/config changes.
+
+Files changed:
+- `docs/REFACTOR_CHANGE_LOG.md`
+- `src/dx-excshell-1/web-src/src/components/AEPProfileInjectorSimplified.js`
+
+Behavior impact:
+- Added mounted-state and AbortController cleanup for mount-time session/sandbox loading in `AEPProfileInjectorSimplified`.
+- Guarded delayed feedback/error timeout callbacks so they do not set state after unmount.
+- Guarded `loadSession`, `loadSandboxes`, and silent session-save completion state updates so closing or navigating away from the screen mid-request does not update an unmounted component.
+- No action names, routes, Runtime annotations, access policies, credential inputs, or API contracts changed.
+
+Verification:
+- Passed: `npm test -- --runInBand` - 19 suites, 135 tests.
+- Passed: `aio app build` - built 40 actions and web assets.
+- Browser smoke left for user manual verification in local app.
+
+Open questions:
+- None.
+
+Next recommended step:
+- Manual user smoke: open AI AEP Profile Injector, navigate away or close the function while sandboxes/session loading is still in progress, and confirm the unmounted state update warning no longer appears.
+
+## 2026-04-29 - Administration UI And API Monitor Sessions
+
+Branch: `codex/admin-ui-api-monitor-sessions`
+
+Milestone: Active milestone - Administration UI and API Monitor session management
+
+Intent:
+- Add an admin-only `/Administration` route under Utilities for managing feature access policies.
+- Use the non-secret bootstrap administrator email `jmagana@adobe.com` through the new `administrator` Runtime input.
+- Store dynamic access policies in Azure Blob Storage while preserving the current static allowlist/public behavior as the default and fallback.
+- Add API Monitor session listing and description editing for the existing API Monitor storage user identifier model.
+- Move unfinished M7/M9-M13 work into roadmap/future-work documentation instead of treating those items as the immediate implementation sequence.
+
+Files changed:
+- `.env.example`
+- `AGENT.md`
+- `README.md`
+- `docs/API_STORAGE_SCHEMA.md`
+- `docs/APP_REFACTOR_PLAN.md`
+- `docs/REFACTOR_CHANGE_LOG.md`
+- `src/dx-excshell-1/ext.config.yaml`
+- `src/dx-excshell-1/actions/access-management/index.js`
+- `src/dx-excshell-1/actions/api-monitor/index.js`
+- `src/dx-excshell-1/actions/shared/accessPolicy.js`
+- `src/dx-excshell-1/actions/shared/accessPolicyStore.js`
+- `src/dx-excshell-1/actions/shared/apiMonitorStore.js`
+- `src/dx-excshell-1/actions/shared/config.js`
+- `src/dx-excshell-1/actions/shared/sessionStore.js`
+- `src/dx-excshell-1/web-src/src/appRegistry.js`
+- `src/dx-excshell-1/web-src/src/components/Administration.js`
+- `src/dx-excshell-1/web-src/src/components/ApiMonitor.js`
+- `src/dx-excshell-1/web-src/src/components/App.js`
+- `src/dx-excshell-1/web-src/src/components/SideBar.js`
+- `src/dx-excshell-1/web-src/src/utils/accessControl.js`
+- `src/dx-excshell-1/web-src/src/utils/accessManagement.js`
+- `src/dx-excshell-1/test/accessManagementAction.test.js`
+- `src/dx-excshell-1/test/accessPolicy.test.js`
+- `src/dx-excshell-1/test/accessControl.test.js`
+- `src/dx-excshell-1/test/apiMonitorStore.test.js`
+- `src/dx-excshell-1/test/appBuilderConfig.test.js`
+- `src/dx-excshell-1/test/appRegistry.test.js`
+- `src/dx-excshell-1/test/sessionStore.test.js`
+
+Behavior impact:
+- Added new `access-management` Runtime action and `administrator` package input; declared action count is now 40.
+- Added `/Administration` route under Utilities with backend-confirmed admin visibility. `jmagana@adobe.com` is the bootstrap administrator and is always retained in the Administration allowlist.
+- Added Azure Blob access policy storage at `access-control/policies.json` with defaults that preserve current public/protected behavior.
+- Frontend route/sidebar access now uses dynamic backend permission results when available and static defaults as fallback. Non-admin access responses do not include full allowlists.
+- Added API Monitor `listSessions` and `updateSessionDescription` actions for existing API Monitor user identifiers.
+- API Monitor UI now lists sessions by user identifier, allows descriptions, and connects to selected sessions through the existing connect flow.
+- Older API Monitor sessions without `session.description` display an empty description.
+- M7/M9-M13-style work is now documented as roadmap/future work instead of the immediate recommended sequence.
+- No deployment, Runtime upgrade, existing action rename, existing route rename, existing auth annotation change, existing package name change, or existing web action URL change was made.
+
+Verification:
+- Passed focused: `node node_modules/jest/bin/jest.js --passWithNoTests src/dx-excshell-1/test/accessPolicy.test.js src/dx-excshell-1/test/accessManagementAction.test.js src/dx-excshell-1/test/accessControl.test.js src/dx-excshell-1/test/appRegistry.test.js src/dx-excshell-1/test/apiMonitorStore.test.js src/dx-excshell-1/test/sessionStore.test.js src/dx-excshell-1/test/appBuilderConfig.test.js --runInBand` - 7 suites, 42 tests.
+- Passed: `npm test -- --runInBand` - 19 suites, 135 tests.
+- Passed after replacing unavailable `Save` icon with `SaveFloppy`: `aio app build` - built 40 actions and web assets.
+- Attempted: `aio app run --open`; sandbox blocked local port/cache access with `listen EPERM: operation not permitted 0.0.0.0:9080`.
+- Skipped by user choice: escalated local browser smoke; user will run it manually.
+
+Open questions:
+- None for this implementation pass; API Monitor user lookup will use the existing storage user identifier.
+
+Next recommended step:
+- Manual user smoke test: verify Administration appears for `jmagana@adobe.com`, policy edits persist, non-admins cannot open Administration, API Monitor lists sessions for the current user identifier, description edits persist, and Connect opens the selected session.
+
 ## 2026-04-29 - M5/M6 Route Registry And Access Control
 
 Branch: `codex/m5-m6-route-access`

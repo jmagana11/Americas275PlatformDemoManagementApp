@@ -29,6 +29,8 @@ const ORG_METADATA_DEFAULTS = Object.freeze({
 
 const RUNTIME_INPUT_KEYS = Object.freeze([
   'LOG_LEVEL',
+  'administrator',
+  'ADMINISTRATOR',
   'apiKey',
   'clientSecret',
   'techAccId',

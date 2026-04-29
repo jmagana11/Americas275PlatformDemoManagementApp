@@ -10,6 +10,7 @@ runtimeManifest:
       license: Apache-2.0
       inputs:
         LOG_LEVEL: $LOG_LEVEL
+        administrator: $administrator
         apiKey: $AEP_API_KEY
         clientSecret: $AEP_CLIENT_SECRET
         techAccId: $AEP_TECH_ACCOUNT_ID
@@ -275,6 +276,13 @@ runtimeManifest:
             final: true
         session-manager:
           function: actions/session-manager/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        access-management:
+          function: actions/access-management/index.js
           web: 'yes'
           runtime: nodejs:16
           annotations:

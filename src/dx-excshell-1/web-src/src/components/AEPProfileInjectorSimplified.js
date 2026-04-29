@@ -98,6 +98,8 @@ function AEPProfileInjectorSimplified({ runtime, ims }) {
 
   // Cleanup timeouts to prevent memory leaks
   const timeoutRefs = useRef([])
+  const isMountedRef = useRef(true)
+  const abortControllersRef = useRef([])
 
   const clearAllTimeouts = () => {
     timeoutRefs.current.forEach(timeoutId => clearTimeout(timeoutId))
@@ -105,13 +107,44 @@ function AEPProfileInjectorSimplified({ runtime, ims }) {
   }
 
   const safeSetTimeout = (callback, delay) => {
-    const timeoutId = setTimeout(callback, delay)
+    const timeoutId = setTimeout(() => {
+      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId)
+      if (isMountedRef.current) {
+        callback()
+      }
+    }, delay)
     timeoutRefs.current.push(timeoutId)
     return timeoutId
   }
 
+  const createAbortController = () => {
+    if (typeof AbortController === 'undefined') {
+      return null
+    }
+
+    const controller = new AbortController()
+    abortControllersRef.current.push(controller)
+    return controller
+  }
+
+  const releaseAbortController = (controller) => {
+    if (!controller) return
+    abortControllersRef.current = abortControllersRef.current.filter(item => item !== controller)
+  }
+
+  const abortPendingRequests = () => {
+    abortControllersRef.current.forEach(controller => controller.abort())
+    abortControllersRef.current = []
+  }
+
+  const isAbortError = (error) => error && error.name === 'AbortError'
+
   useEffect(() => {
-    return () => clearAllTimeouts()
+    return () => {
+      isMountedRef.current = false
+      clearAllTimeouts()
+      abortPendingRequests()
+    }
   }, [])
 
   // Common headers for API calls
@@ -124,11 +157,13 @@ function AEPProfileInjectorSimplified({ runtime, ims }) {
 
   // Helper functions
   const showFeedback = (type, message, duration = 3000) => {
+    if (!isMountedRef.current) return
     setFeedback({ type, message })
     safeSetTimeout(() => setFeedback(null), duration)
   }
 
   const showError = (message) => {
+    if (!isMountedRef.current) return
     setError(message)
     safeSetTimeout(() => setError(null), 5000)
   }
@@ -201,12 +236,15 @@ function AEPProfileInjectorSimplified({ runtime, ims }) {
       console.warn('⚠️ Failed to save session:', error)
       // Don't show error to user - session saving should be silent
     } finally {
-      setSessionSaving(false)
+      if (isMountedRef.current) {
+        setSessionSaving(false)
+      }
     }
   }
 
   const loadSession = async () => {
     if (!ims?.profile?.userId || sessionLoaded) return
+    const abortController = createAbortController()
 
     try {
       console.log('📥 Loading session for user:', ims.profile.userId)
@@ -214,22 +252,29 @@ function AEPProfileInjectorSimplified({ runtime, ims }) {
       const response = await fetch(allActions['session-manager'], {
         method: 'POST',
         headers: getApiHeaders(),
+        signal: abortController?.signal,
         body: JSON.stringify({
           action: 'load',
           featureName: 'aepProfileInjector'
         })
       })
 
+      if (!isMountedRef.current) return
+
       if (!response.ok) {
         if (response.status === 404) {
           console.log('📋 No existing session found - starting fresh')
-          setSessionLoaded(true)
+          if (isMountedRef.current) {
+            setSessionLoaded(true)
+          }
           return
         }
         throw new Error(`Failed to load session: ${response.status}`)
       }
 
       const data = await response.json()
+      if (!isMountedRef.current) return
+
       const responseData = data.body || data
       const session = responseData.data
 
@@ -276,16 +321,21 @@ function AEPProfileInjectorSimplified({ runtime, ims }) {
         showFeedback('positive', 'Previous session restored')
       }
     } catch (error) {
+      if (isAbortError(error)) return
       console.warn('⚠️ Failed to load session:', error)
       // Don't show error to user - just start fresh
     } finally {
-      setSessionLoaded(true)
+      releaseAbortController(abortController)
+      if (isMountedRef.current) {
+        setSessionLoaded(true)
+      }
     }
   }
 
   // Step 1: Sandbox Management
   const loadSandboxes = async () => {
     if (sandboxes.length > 0) return // Already loaded
+    const abortController = createAbortController()
 
     setSandboxLoading(true)
     try {
@@ -298,8 +348,11 @@ function AEPProfileInjectorSimplified({ runtime, ims }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${ims.token}`,
           'x-gw-ims-org-id': ims.org
-        }
+        },
+        signal: abortController?.signal
       })
+
+      if (!isMountedRef.current) return
 
       console.log('Sandbox response status:', response.status)
 
@@ -310,27 +363,43 @@ function AEPProfileInjectorSimplified({ runtime, ims }) {
       }
 
       const data = await response.json()
+      if (!isMountedRef.current) return
+
       console.log('Sandbox response data:', data)
 
       const responseData = data.body || data
       const sandboxList = responseData.sandboxes || []
 
+      if (!isMountedRef.current) return
+
       setSandboxes(sandboxList)
       console.log(`Successfully loaded ${sandboxList.length} sandboxes:`, sandboxList.map(s => s.name))
     } catch (error) {
+      if (isAbortError(error)) return
       console.error('Error loading sandboxes:', error)
       showError(`Failed to load sandboxes: ${error.message}`)
     } finally {
-      setSandboxLoading(false)
+      releaseAbortController(abortController)
+      if (isMountedRef.current) {
+        setSandboxLoading(false)
+      }
     }
   }
 
   // Load session and sandboxes on component mount
   useEffect(() => {
+    let cancelled = false
+
     if (ims.token && ims.org && ims.profile?.userId) {
       loadSession().then(() => {
-        loadSandboxes()
+        if (!cancelled && isMountedRef.current) {
+          loadSandboxes()
+        }
       })
+    }
+
+    return () => {
+      cancelled = true
     }
   }, [ims.token, ims.org, ims.profile?.userId])
 

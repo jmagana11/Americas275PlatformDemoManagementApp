@@ -13,8 +13,10 @@ const {
   clearSessionEvents,
   createApiMonitorSessionData,
   getApiMonitorSessionBlobPath,
+  getApiMonitorSessionBlobPrefix,
   getApiMonitorWebhookEventBlobPath,
   getApiMonitorWebhookEventPrefix,
+  getSessionIdFromApiMonitorSessionBlobPath,
   listSessionEvents,
   normalizeApiMonitorSessionData
 } = require('./sessionStore')
@@ -36,6 +38,10 @@ function sanitizeUserId(userId) {
 
 function getSessionBlobPath(userId, sessionId) {
   return getApiMonitorSessionBlobPath(userId, sessionId)
+}
+
+function getSessionBlobPrefix(userId) {
+  return getApiMonitorSessionBlobPrefix(userId)
 }
 
 function getWebhookEventPrefix(sessionId) {
@@ -274,6 +280,76 @@ async function updateWebhookSessionSummary(blobServiceClient, monitorSession, op
   return latestSessionData
 }
 
+function toSessionSummary(entry, userId) {
+  const sessionId = entry.data?.session?.id || getSessionIdFromApiMonitorSessionBlobPath(userId, entry.blob.name)
+  const sessionData = normalizeApiMonitorSessionData(entry.data, {
+    sessionId,
+    userId
+  })
+  const session = sessionData.session || {}
+
+  return {
+    sessionId: session.id,
+    userId: session.userId || userId,
+    description: session.description || '',
+    created: session.created || sessionData.created || '',
+    lastActivity: session.lastActivity || sessionData.lastModified || '',
+    requestCount: session.requestCount || (sessionData.requestLogs || []).length || 0,
+    webhookCount: session.webhookCount || (sessionData.webhookLogs || []).length || 0,
+    blobPath: entry.blob.name
+  }
+}
+
+function sortSessionsNewestFirst(sessions) {
+  return [...sessions].sort((left, right) => {
+    const leftTime = new Date(left.lastActivity || left.created || 0).getTime()
+    const rightTime = new Date(right.lastActivity || right.created || 0).getTime()
+    return rightTime - leftTime
+  })
+}
+
+async function listMonitorSessions(blobServiceClient, userId, options = {}) {
+  const limit = Number(options.limit || 100)
+  const prefix = getSessionBlobPrefix(userId)
+  const entries = await readJsonBlobsByPrefix(blobServiceClient, prefix, options)
+  const sessions = sortSessionsNewestFirst(entries.map((entry) => toSessionSummary(entry, userId)))
+
+  return {
+    sessions: sessions.slice(0, limit),
+    totalCount: sessions.length,
+    userId
+  }
+}
+
+async function updateMonitorSessionDescription(blobServiceClient, userId, sessionId, description, options = {}) {
+  const blobPath = getSessionBlobPath(userId, sessionId)
+  const existingSessionData = await readJsonBlob(blobServiceClient, blobPath, options)
+
+  if (!existingSessionData) {
+    return null
+  }
+
+  const timestamp = options.timestamp || new Date().toISOString()
+  const sessionData = normalizeApiMonitorSessionData(existingSessionData, {
+    sessionId,
+    userId,
+    timestamp
+  })
+
+  sessionData.session.description = String(description || '').trim().slice(0, 500)
+  sessionData.lastModified = timestamp
+
+  await writeMonitorSession(blobServiceClient, blobPath, sessionData, {
+    ...options,
+    timestamp
+  })
+
+  return toSessionSummary({
+    blob: { name: blobPath },
+    data: sessionData
+  }, userId)
+}
+
 module.exports = {
   clearMonitorRequestEvents,
   clearWebhookEvents,
@@ -282,11 +358,14 @@ module.exports = {
   findOrCreateMonitorSession,
   getMonitorSessionUserCandidates,
   getSessionBlobPath,
+  getSessionBlobPrefix,
   getWebhookEventBlobPath,
   getWebhookEventPrefix,
+  listMonitorSessions,
   listMonitorRequestEvents,
   listWebhookEvents,
   sanitizeUserId,
+  updateMonitorSessionDescription,
   updateWebhookSessionSummary,
   writeMonitorSession,
   writeWebhookEvent

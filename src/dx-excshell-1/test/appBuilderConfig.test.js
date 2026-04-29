@@ -30,7 +30,7 @@ describe('App Builder configuration safety', () => {
   test('declares every deployed action with an existing function file', () => {
     const declaredActions = getDeclaredActions()
 
-    expect(declaredActions).toHaveLength(39)
+    expect(declaredActions).toHaveLength(40)
     for (const action of declaredActions) {
       expect(action.functionPath).toMatch(/^actions\/[^/]+\/index\.js$/)
       expect(fs.existsSync(path.join(extensionRoot, action.functionPath))).toBe(true)
@@ -104,6 +104,7 @@ describe('App Builder configuration safety', () => {
     const config = fs.readFileSync(extConfigPath, 'utf8')
 
     expect(config).toContain('MS_APP_ROLE_ID: $MS_APP_ROLE_ID')
+    expect(config).toContain('administrator: $administrator')
     expect(config).not.toContain('$MA1HOL_MS_APP_ROLE_ID')
     expect(config).not.toContain('$POT5HOL_MS_APP_ROLE_ID')
     expect(config).not.toContain('$CAMPAIGN_TRIGGER_CLIENT_ID')

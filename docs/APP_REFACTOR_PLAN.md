@@ -274,7 +274,26 @@ Completed implementation:
 - Changed default access-control logging to print user email and permission booleans only; full allowlists are emitted only when debug is enabled.
 - Added focused tests for representative allow/deny decisions, permission summary keys, and default/debug logging behavior.
 
-### M7: AEP Backend Helper Cluster
+### Active: Administration UI And API Monitor Session Management
+
+Goal: Move feature access management out of hard-coded frontend allowlists and make API Monitor sessions easier to reconnect to.
+
+Current implementation plan:
+1. Add an admin-only `/Administration` route under Utilities.
+2. Add an `access-management` action backed by Azure Blob policy document `access-control/policies.json`.
+3. Use the `administrator` Runtime input with `jmagana@adobe.com` as the bootstrap administrator.
+4. Preserve current public/protected behavior as the default policy and static fallback.
+5. Add API Monitor session listing by existing API Monitor user identifier.
+6. Store optional API Monitor session descriptions on `session.description`.
+
+Acceptance criteria:
+- Administration route is visible only after backend admin confirmation.
+- Non-admin access responses do not include full allowlists.
+- Admin can edit every registry feature policy.
+- API Monitor can list sessions, edit descriptions, and connect to a listed session.
+- Existing session blob paths and older description-less sessions remain compatible.
+
+### Roadmap: AEP Backend Helper Cluster
 
 Goal: Centralize AEP IMS org/api-key/header construction and repeated response handling.
 
@@ -353,7 +372,7 @@ Completed implementation:
 - Added focused Jest coverage for org discovery, metadata redaction, capability checks, sandbox lookup, auth actions, content-template override resolution, and frontend wiring.
 - Automated tests and build passed; frontend smoke was left for manual user execution.
 
-### M9: AI Tooling Helper Cluster
+### Roadmap: AI Tooling Helper Cluster
 
 Goal: Centralize Azure OpenAI, Azure Vision, prompt, and response handling.
 
@@ -377,7 +396,7 @@ Acceptance criteria:
 - Missing config errors are clear and value-free.
 - Tests cover one success and one missing-config path per action.
 
-### M10: Data/File Utility Cleanup
+### Roadmap: Data/File Utility Cleanup
 
 Goal: Make file and JSON-data utilities consistent, paginated, and safe with larger blobs.
 
@@ -401,7 +420,7 @@ Acceptance criteria:
 - Large lists do not lock the UI.
 - Blob errors are shown without exposing SAS token details.
 
-### M11: JMeter And Sandbox Legacy Rationalization
+### Roadmap: JMeter And Sandbox Legacy Rationalization
 
 Goal: Decide what is active, what is legacy, and what should be moved under `tools/legacy`.
 
@@ -426,7 +445,7 @@ Acceptance criteria:
 - JMeter API key stays server-side.
 - Legacy decisions are recorded in the change log.
 
-### M12: Test Harness And Smoke Automation
+### Roadmap: Test Harness And Smoke Automation
 
 Goal: Make future refactors safer.
 
@@ -445,7 +464,7 @@ Acceptance criteria:
 - CI catches missing action files, missing direct deps, exposed blocked patterns, and broken helper contracts.
 - Smoke test docs stay aligned with README.
 
-### M13: Auth Hardening And Runtime Upgrade
+### Roadmap: Auth Hardening And Runtime Upgrade
 
 Goal: Harden public actions and move Runtime off `nodejs:16` only after the refactors are stable.
 
@@ -624,7 +643,7 @@ Plan:
 - Align storage with M4.
 - Keep proxy config schema backwards-compatible.
 - Add tests for matching proxy config, header preparation, request transform, response transform, and log redaction.
-- Review public action auth later in M13.
+- Review public action auth later in the auth-hardening roadmap item.
 
 ### File Manager, Data Management, JSON Editor
 
@@ -711,11 +730,16 @@ Completed:
 - M8: Org-specific Adobe/Microsoft config cluster with backend org metadata and shared frontend org options.
 - M5/M6: Frontend route/sidebar feature registry and consolidated access-control groups/policies.
 
-Next recommended sequence:
-1. M7: AEP backend helper cluster.
-2. M9, M10, M11: Tool-specific cleanup.
-3. M12: Smoke automation expansion.
-4. M13: Auth hardening and Runtime upgrade.
+Active:
+- Administration UI and API Monitor session-management milestone.
+
+Roadmap items:
+- AEP backend helper cluster.
+- AI tooling helper cluster.
+- Data/File utility cleanup.
+- JMeter and sandbox legacy rationalization.
+- Smoke automation expansion.
+- Auth hardening and Runtime upgrade.
 
 ## Change Log Rule
 

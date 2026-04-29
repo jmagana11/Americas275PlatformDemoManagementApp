@@ -8,48 +8,83 @@ import ErrorBoundary from 'react-error-boundary'
 import { HashRouter as Router, Switch, Route, Redirect } from 'react-router-dom'
 import SideBar from './SideBar'
 import { SidebarProvider } from './SidebarContext'
-import { appFeatures } from '../appRegistry'
+import { appFeatures, isFeatureAccessible } from '../appRegistry'
+import { buildAccessStateFromResponse, createStaticAccessState } from '../utils/accessControl'
+import { loadMyAccess } from '../utils/accessManagement'
 
-// Protected Route Component
-const ProtectedRoute = ({ component: Component, runtime, ims, accessCheck, ...rest }) => {
+const AccessDenied = () => (
+  <View padding="size-400">
+    <h2>Access denied</h2>
+  </View>
+)
+
+const AccessLoading = () => (
+  <View padding="size-400">
+    <h2>Loading access</h2>
+  </View>
+)
+
+const AccessControlledRoute = ({ feature, runtime, ims, accessState, accessLoading, refreshAccess, ...rest }) => {
+  const Component = feature.component
   return (
     <Route
       {...rest}
       render={props => {
-        if (!accessCheck(ims)) {
+        if (!isFeatureAccessible(feature, ims, accessState)) {
+          if (feature.key === 'administration' && accessLoading) {
+            return <AccessLoading />
+          }
+          if (feature.path === '/') {
+            return <AccessDenied />
+          }
           console.log('Access denied, redirecting to home')
           return <Redirect to="/" />
         }
-        return <Component {...props} runtime={runtime} ims={ims} />
+        return <Component {...props} runtime={runtime} ims={ims} accessState={accessState} refreshAccess={refreshAccess} />
       }}
     />
   )
 }
 
-const AppRoute = ({ feature, runtime, ims }) => {
-  const Component = feature.component
-
-  if (feature.accessCheck) {
-    return (
-      <ProtectedRoute
-        exact={feature.exact}
-        path={feature.path}
-        component={Component}
-        runtime={runtime}
-        ims={ims}
-        accessCheck={feature.accessCheck}
-      />
-    )
-  }
-
+const AppRoute = ({ feature, runtime, ims, accessState, accessLoading, refreshAccess }) => {
   return (
-    <Route exact={feature.exact} path={feature.path}>
-      <Component runtime={runtime} ims={ims} />
-    </Route>
+    <AccessControlledRoute
+      exact={feature.exact}
+      path={feature.path}
+      feature={feature}
+      runtime={runtime}
+      ims={ims}
+      accessState={accessState}
+      accessLoading={accessLoading}
+      refreshAccess={refreshAccess}
+    />
   )
 }
 
 function App (props) {
+  const [accessState, setAccessState] = React.useState(() => createStaticAccessState())
+  const [accessLoading, setAccessLoading] = React.useState(false)
+
+  const refreshAccess = React.useCallback(async () => {
+    setAccessLoading(true)
+    try {
+      const result = await loadMyAccess(props.ims)
+      setAccessState(buildAccessStateFromResponse(result))
+    } catch (error) {
+      setAccessState(createStaticAccessState({
+        source: 'fallback',
+        loadError: error.message || 'Access policies unavailable',
+        userEmail: props.ims && props.ims.profile && props.ims.profile.email
+      }))
+    } finally {
+      setAccessLoading(false)
+    }
+  }, [props.ims])
+
+  React.useEffect(() => {
+    refreshAccess()
+  }, [refreshAccess])
+
   console.log('runtime object:', props.runtime)
   console.log('ims object:', props.ims)
 
@@ -69,7 +104,7 @@ function App (props) {
         <Provider theme={defaultTheme} colorScheme={'light'}>
           <SidebarProvider>
             <Flex direction="row" height="100vh" width="100%">
-              <SideBar ims={props.ims} />
+              <SideBar ims={props.ims} accessState={accessState} />
               <View flex="1" height="100vh" UNSAFE_style={{ overflowY: 'auto' }}>
                 <View padding="size-400">
                   <Switch>
@@ -81,6 +116,9 @@ function App (props) {
                         feature={feature}
                         runtime={props.runtime}
                         ims={props.ims}
+                        accessState={accessState}
+                        accessLoading={accessLoading}
+                        refreshAccess={refreshAccess}
                       />
                     ))}
                   </Switch>

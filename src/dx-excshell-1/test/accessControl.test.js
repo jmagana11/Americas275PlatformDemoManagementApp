@@ -1,5 +1,7 @@
 const {
   ACCESS_POLICIES,
+  buildAccessStateFromResponse,
+  FEATURE_ACCESS_DEFINITIONS,
   getUserAccessPermissions,
   hasAEPOverviewAccess,
   hasAdminAccess,
@@ -45,7 +47,22 @@ describe('frontend access control', () => {
     expect(hasApiDocumentationAccess(ims)).toBe(true)
     expect(hasContentMigratorAccess(ims)).toBe(true)
     expect(hasApiProxyAccess(ims)).toBe(true)
-    expect(hasAdminAccess(ims)).toBe(true)
+    expect(hasAdminAccess(ims)).toBe(false)
+  })
+
+  test('requires dynamic backend confirmation for administration access', () => {
+    const ims = imsFor('jmagana@adobe.com')
+    const accessState = buildAccessStateFromResponse({
+      success: true,
+      isAdmin: true,
+      policiesLoaded: true,
+      permissions: {
+        administration: true
+      }
+    })
+
+    expect(hasAdminAccess(ims)).toBe(false)
+    expect(hasAdminAccess(ims, accessState)).toBe(true)
   })
 
   test('preserves extended user differences by feature', () => {
@@ -79,18 +96,18 @@ describe('frontend access control', () => {
   })
 
   test('returns stable permission summary keys', () => {
-    expect(Object.keys(getUserAccessPermissions(imsFor('jmagana@adobe.com')))).toEqual([
-      'userManagement',
-      'aepOverview',
-      'jmeterTesting',
-      'fileManager',
+    const keys = Object.keys(getUserAccessPermissions(imsFor('jmagana@adobe.com')))
+
+    for (const definition of FEATURE_ACCESS_DEFINITIONS) {
+      expect(keys).toContain(definition.key)
+    }
+    expect(keys).toEqual(expect.arrayContaining([
       'apiTester',
-      'apiDocumentation',
       'contentMigrator',
       'aiProfileInjector',
       'apiProxy',
       'admin'
-    ])
+    ]))
   })
 
   test('does not dump allowlists unless debug mode is enabled', () => {

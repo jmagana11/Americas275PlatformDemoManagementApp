@@ -7,9 +7,11 @@ const {
   createApiProxyUserSessionData,
   createProxySessionData,
   getApiMonitorSessionBlobPath,
+  getApiMonitorSessionBlobPrefix,
   getApiMonitorWebhookEventPrefix,
   getApiProxySessionBlobPath,
   getApiProxyUserSessionBlobPath,
+  getSessionIdFromApiMonitorSessionBlobPath,
   getSessionManagerBlobPath,
   listSessionEvents,
   normalizeApiMonitorSessionData,
@@ -21,6 +23,8 @@ const {
 describe('shared session storage schema helpers', () => {
   test('keeps existing storage paths stable', () => {
     expect(getApiMonitorSessionBlobPath('user-1', 'session-1')).toBe('api-monitor/DO_NOT_DELETE_APPBUILDER_user-1_session-1.json')
+    expect(getApiMonitorSessionBlobPrefix('user-1')).toBe('api-monitor/DO_NOT_DELETE_APPBUILDER_user-1_')
+    expect(getSessionIdFromApiMonitorSessionBlobPath('user-1', 'api-monitor/DO_NOT_DELETE_APPBUILDER_user-1_session-1.json')).toBe('session-1')
     expect(getApiMonitorWebhookEventPrefix('session-1')).toBe('api-monitor/events/session-1/webhooks/')
     expect(getApiProxyUserSessionBlobPath('user-1')).toBe('users/user-1/sessions.json')
     expect(getApiProxySessionBlobPath('session-1')).toBe('sessions/session-1/config.json')

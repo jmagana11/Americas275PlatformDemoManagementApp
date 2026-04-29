@@ -19,10 +19,17 @@ const {
   createMonitorSessionData,
   findMonitorSession,
   getSessionBlobPath,
+  listMonitorSessions,
   listMonitorRequestEvents,
   listWebhookEvents,
+  updateMonitorSessionDescription,
   writeMonitorSession
 } = require('../shared/apiMonitorStore')
+const { readAccessPolicyDocument } = require('../shared/accessPolicyStore')
+const {
+  evaluateFeatureAccess,
+  getRequestUserEmail
+} = require('../shared/accessPolicy')
 const { redactObject, redactValue, safeStringify } = require('../shared/redaction')
 
 // Helper function to get IMS user identifier
@@ -55,6 +62,26 @@ function getUserIdentifier(headers) {
   // Fallback to a default identifier
   console.log('Using default user identifier')
   return 'default_user'
+}
+
+async function hasApiMonitorAccess(params, blobServiceClient) {
+  const policyDocument = await readAccessPolicyDocument(blobServiceClient, {
+    source: params
+  })
+
+  return evaluateFeatureAccess(policyDocument, 'apiMonitor', getRequestUserEmail(params), {
+    source: params
+  })
+}
+
+function sessionManagementForbidden() {
+  return {
+    statusCode: 403,
+    body: {
+      success: false,
+      error: 'API Monitor access required'
+    }
+  }
 }
 
 // main function that will be executed by Adobe I/O Runtime
@@ -99,11 +126,17 @@ async function main(params) {
       
       case 'getSession':
         return await getSession(params)
+
+      case 'listSessions':
+        return await listSessions(params)
+
+      case 'updateSessionDescription':
+        return await updateSessionDescription(params)
       
       default:
         return {
           statusCode: 400,
-          body: { error: 'Invalid action. Use: createSession, proxy, getLogs, clearLogs, getWebhookLogs, clearWebhookLogs, createProxyConfig, getProxyConfigs, updateProxyConfig, deleteProxyConfig, or getSession' }
+          body: { error: 'Invalid action. Use: createSession, proxy, getLogs, clearLogs, getWebhookLogs, clearWebhookLogs, createProxyConfig, getProxyConfigs, updateProxyConfig, deleteProxyConfig, getSession, listSessions, or updateSessionDescription' }
         }
     }
     
@@ -844,6 +877,96 @@ async function deleteProxyConfig(params) {
     return {
       statusCode: 500,
       body: { error: 'Failed to delete proxy config', details: error.message }
+    }
+  }
+}
+
+async function listSessions(params) {
+  try {
+    const blobServiceClient = createBlobServiceClient(params)
+
+    if (!await hasApiMonitorAccess(params, blobServiceClient)) {
+      return sessionManagementForbidden()
+    }
+
+    const currentUserId = getUserIdentifier(params.__ow_headers || {})
+    const userId = params.userIdentifier || params.userId || currentUserId
+    const result = await listMonitorSessions(blobServiceClient, userId, {
+      limit: params.limit || 100
+    })
+
+    return {
+      statusCode: 200,
+      body: {
+        success: true,
+        userIdentifier: result.userId,
+        currentUserIdentifier: currentUserId,
+        sessions: result.sessions,
+        totalCount: result.totalCount
+      }
+    }
+  } catch (error) {
+    console.error('Error listing API Monitor sessions:', error)
+    return {
+      statusCode: 500,
+      body: {
+        success: false,
+        error: 'Failed to list sessions',
+        details: error.message
+      }
+    }
+  }
+}
+
+async function updateSessionDescription(params) {
+  try {
+    const { sessionId } = params
+    const blobServiceClient = createBlobServiceClient(params)
+
+    if (!await hasApiMonitorAccess(params, blobServiceClient)) {
+      return sessionManagementForbidden()
+    }
+
+    if (!sessionId) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'sessionId is required'
+        }
+      }
+    }
+
+    const userId = params.userIdentifier || params.userId || getUserIdentifier(params.__ow_headers || {})
+    const session = await updateMonitorSessionDescription(blobServiceClient, userId, sessionId, params.description || '')
+
+    if (!session) {
+      return {
+        statusCode: 404,
+        body: {
+          success: false,
+          error: 'Session not found'
+        }
+      }
+    }
+
+    return {
+      statusCode: 200,
+      body: {
+        success: true,
+        userIdentifier: userId,
+        session
+      }
+    }
+  } catch (error) {
+    console.error('Error updating API Monitor session description:', error)
+    return {
+      statusCode: 500,
+      body: {
+        success: false,
+        error: 'Failed to update session description',
+        details: error.message
+      }
     }
   }
 }

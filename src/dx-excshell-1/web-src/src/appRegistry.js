@@ -42,14 +42,17 @@ import DeleteSandbox from './components/DeleteSandbox'
 import ActionsForm from './components/ActionsForm'
 import ContentTemplateMigrator from './components/ContentTemplateMigrator'
 import OfferSimulator from './components/OfferSimulator'
+import Administration from './components/Administration'
 
 import {
   hasAEPOverviewAccess,
   hasAIProfileInjectorAccess,
+  hasAdminAccess,
   hasApiDocumentationAccess,
   hasApiProxyAccess,
   hasContentMigratorAccess,
   hasFileManagerAccess,
+  hasFeatureAccess,
   hasJmeterTestingAccess,
   hasUserManagementAccess
 } from './utils/accessControl'
@@ -137,6 +140,17 @@ export const appFeatures = Object.freeze([
       section: 'utilities',
       label: 'API Monitor',
       icon: WebPage
+    }
+  },
+  {
+    key: 'administration',
+    path: '/Administration',
+    component: Administration,
+    accessCheck: hasAdminAccess,
+    nav: {
+      section: 'utilities',
+      label: 'Administration',
+      icon: UserGroup
     }
   },
   {
@@ -306,18 +320,18 @@ export const appFeatures = Object.freeze([
   }
 ])
 
-export function isFeatureAccessible(feature, ims) {
-  return !feature.accessCheck || feature.accessCheck(ims)
+export function isFeatureAccessible(feature, ims, accessState) {
+  return hasFeatureAccess(feature.key, ims, accessState)
 }
 
-export function getTopLevelNavItems(ims) {
-  return appFeatures.filter((feature) => feature.nav && !feature.nav.section && isFeatureAccessible(feature, ims))
+export function getTopLevelNavItems(ims, accessState) {
+  return appFeatures.filter((feature) => feature.nav && !feature.nav.section && isFeatureAccessible(feature, ims, accessState))
 }
 
-export function getSectionNavItems(sectionKey, ims) {
+export function getSectionNavItems(sectionKey, ims, accessState) {
   return appFeatures.filter((feature) => (
     feature.nav &&
     feature.nav.section === sectionKey &&
-    isFeatureAccessible(feature, ims)
+    isFeatureAccessible(feature, ims, accessState)
   ))
 }

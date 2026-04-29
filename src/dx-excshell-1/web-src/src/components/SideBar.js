@@ -19,15 +19,15 @@ import ChevronRight from '@spectrum-icons/workflow/ChevronRight'
 import Menu from '@spectrum-icons/workflow/Menu'
 import Close from '@spectrum-icons/workflow/Close'
 
-function SideBar({ ims }) {
+function SideBar({ ims, accessState }) {
   const { sidebarCollapsed, toggleSidebar } = useSidebar()
   
   // Log access control info when component mounts or ims changes
   React.useEffect(() => {
     if (ims) {
-      logAccessControlInfo(ims)
+      logAccessControlInfo(ims, { accessState })
     }
-  }, [ims])
+  }, [ims, accessState])
   
   // State for each section's collapsed status
   const [sectionStates, setSectionStates] = useState(() => NAV_SECTIONS.reduce((states, section) => {
@@ -186,7 +186,7 @@ function SideBar({ ims }) {
         <View padding="size-75" flex>
           <Flex direction="column" gap="size-50">
             
-            {getTopLevelNavItems(ims).map((item) => (
+            {getTopLevelNavItems(ims, accessState).map((item) => (
               <NavItem key={item.key} item={item} />
             ))}
 
@@ -203,7 +203,7 @@ function SideBar({ ims }) {
                 />
                 {sectionStates[section.key] && !sidebarCollapsed && (
                   <View marginStart="size-0">
-                    {getSectionNavItems(section.key, ims).map((item) => (
+                    {getSectionNavItems(section.key, ims, accessState).map((item) => (
                       <NavItem key={item.key} item={item} />
                     ))}
                   </View>

@@ -6,6 +6,7 @@ const appRegistryPath = path.join(repoRoot, 'src/dx-excshell-1/web-src/src/appRe
 const appPath = path.join(repoRoot, 'src/dx-excshell-1/web-src/src/components/App.js')
 const indexPath = path.join(repoRoot, 'src/dx-excshell-1/web-src/src/index.js')
 const sideBarPath = path.join(repoRoot, 'src/dx-excshell-1/web-src/src/components/SideBar.js')
+const { FEATURE_ACCESS_DEFINITIONS } = require('../actions/shared/accessPolicy')
 
 const expectedRoutes = [
   '/',
@@ -14,6 +15,7 @@ const expectedRoutes = [
   '/JsonEditor',
   '/AIPromptGeneratorEnhanced',
   '/ApiMonitor',
+  '/Administration',
   '/ProxyManager',
   '/CampaignTrigger',
   '/DataManagement',
@@ -53,6 +55,7 @@ const expectedNavLabels = [
   'Crypto & Token Utils',
   'Data Management',
   'API Monitor',
+  'Administration',
   'API Proxy'
 ]
 
@@ -77,11 +80,19 @@ describe('frontend app registry', () => {
     }
   })
 
+  test('keeps access policy coverage aligned with registry feature keys', () => {
+    const registry = readSource(appRegistryPath)
+
+    for (const definition of FEATURE_ACCESS_DEFINITIONS) {
+      expect(registry).toContain(`key: '${definition.key}'`)
+    }
+  })
+
   test('drives App routes and SideBar navigation from the registry', () => {
     const app = readSource(appPath)
     const sideBar = readSource(sideBarPath)
 
-    expect(app).toContain("import { appFeatures } from '../appRegistry'")
+    expect(app).toContain("import { appFeatures, isFeatureAccessible } from '../appRegistry'")
     expect(app).toContain('appFeatures.map')
     expect(app).toContain('path={feature.path}')
     expect(app).toContain('exact={feature.exact}')

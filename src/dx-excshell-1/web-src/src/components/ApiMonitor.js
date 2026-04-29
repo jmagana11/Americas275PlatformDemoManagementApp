@@ -43,8 +43,32 @@ import Delete from '@spectrum-icons/workflow/Delete'
 import Copy from '@spectrum-icons/workflow/Copy'
 import Link from '@spectrum-icons/workflow/Link'
 import Globe from '@spectrum-icons/workflow/Globe'
+import Edit from '@spectrum-icons/workflow/Edit'
 import actionWebInvoke from '../utils'
 import allActions from '../config.json'
+import { getUserEmail } from '../utils/accessControl'
+
+function sanitizeApiMonitorUserIdentifier(value) {
+  return String(value || '').replace(/[^a-zA-Z0-9]/g, '_')
+}
+
+function getAuthBasedUserIdentifier(token) {
+  if (!token) {
+    return null
+  }
+
+  const authHeader = `Bearer ${token}`
+  const sum = authHeader.substring(0, 10).split('').reduce((total, char) => total + char.charCodeAt(0), 0)
+  return `user_${Math.abs(sum)}`
+}
+
+function getDefaultApiMonitorUserIdentifier(ims) {
+  if (ims && ims.org) {
+    return sanitizeApiMonitorUserIdentifier(ims.org)
+  }
+
+  return getAuthBasedUserIdentifier(ims && ims.token) || 'default_user'
+}
 
 export const ApiMonitor = ({ runtime, ims }) => {
   // Session state
@@ -69,6 +93,12 @@ export const ApiMonitor = ({ runtime, ims }) => {
   const [selectedWebhookLog, setSelectedWebhookLog] = useState(null)
   const [error, setError] = useState(null)
   const [webhookUrl, setWebhookUrl] = useState('')
+  const [sessionLookupUserIdentifier, setSessionLookupUserIdentifier] = useState('')
+  const [availableSessions, setAvailableSessions] = useState([])
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [selectedSessionForDescription, setSelectedSessionForDescription] = useState(null)
+  const [descriptionDraft, setDescriptionDraft] = useState('')
+  const [showDescriptionDialog, setShowDescriptionDialog] = useState(false)
   
   // Auto-refresh interval
   const intervalRef = useRef(null)
@@ -163,9 +193,11 @@ export const ApiMonitor = ({ runtime, ims }) => {
       throw new Error('api-monitor action not found in config')
     }
     
+    const userEmail = getUserEmail(ims)
     const headers = ims ? {
       'authorization': `Bearer ${ims.token}`,
-      'x-gw-ims-org-id': ims.org
+      'x-gw-ims-org-id': ims.org,
+      ...(userEmail ? { 'x-user-email': userEmail } : {})
     } : {}
     
     const response = await actionWebInvoke(actionUrl, headers, { action, ...params })
@@ -214,6 +246,7 @@ export const ApiMonitor = ({ runtime, ims }) => {
         
         // Save to localStorage
         localStorage.setItem('apiMonitorSessionId', result.sessionId)
+        loadSessionList(sessionLookupUserIdentifier || result.userId)
       } else if (isMountedRef.current) {
         setError(result.error || 'Failed to create session')
       }
@@ -227,6 +260,104 @@ export const ApiMonitor = ({ runtime, ims }) => {
       setLoading(false)
     }
   }
+
+  const loadSessionList = async (userIdentifier = sessionLookupUserIdentifier) => {
+    const lookupIdentifier = userIdentifier || getDefaultApiMonitorUserIdentifier(ims)
+
+    if (isMountedRef.current) {
+      setSessionsLoading(true)
+      setError(null)
+    }
+
+    try {
+      const result = await callApiMonitorAction('listSessions', {
+        userIdentifier: lookupIdentifier,
+        limit: 100
+      })
+
+      if (result.success && isMountedRef.current) {
+        setSessionLookupUserIdentifier(result.userIdentifier || lookupIdentifier)
+        setAvailableSessions(result.sessions || [])
+      } else if (isMountedRef.current) {
+        setAvailableSessions([])
+        setError(result.error || 'Failed to list sessions')
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        setAvailableSessions([])
+        setError(err.message || 'Failed to list sessions')
+      }
+    }
+
+    if (isMountedRef.current) {
+      setSessionsLoading(false)
+    }
+  }
+
+  const connectToSession = async (id) => {
+    if (!id) {
+      return
+    }
+
+    setSessionId(id)
+    localStorage.setItem('apiMonitorSessionId', id)
+    await checkSessionStatus(id)
+  }
+
+  const openDescriptionDialog = (session) => {
+    setSelectedSessionForDescription(session)
+    setDescriptionDraft(session.description || '')
+    setShowDescriptionDialog(true)
+  }
+
+  const saveSessionDescription = async () => {
+    if (!selectedSessionForDescription) {
+      return false
+    }
+
+    if (isMountedRef.current) {
+      setSessionsLoading(true)
+      setError(null)
+    }
+
+    let saved = false
+
+    try {
+      const result = await callApiMonitorAction('updateSessionDescription', {
+        userIdentifier: sessionLookupUserIdentifier,
+        sessionId: selectedSessionForDescription.sessionId,
+        description: descriptionDraft
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update session description')
+      }
+
+      if (isMountedRef.current) {
+        setShowDescriptionDialog(false)
+        setSelectedSessionForDescription(null)
+        setDescriptionDraft('')
+        await loadSessionList(sessionLookupUserIdentifier)
+      }
+      saved = true
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err.message || 'Failed to update session description')
+      }
+    }
+
+    if (isMountedRef.current) {
+      setSessionsLoading(false)
+    }
+
+    return saved
+  }
+
+  useEffect(() => {
+    const defaultUserIdentifier = getDefaultApiMonitorUserIdentifier(ims)
+    setSessionLookupUserIdentifier(defaultUserIdentifier)
+    loadSessionList(defaultUserIdentifier)
+  }, [ims])
   
   const makeRequest = async () => {
     if (!sessionId || !sessionActive) {
@@ -468,6 +599,10 @@ export const ApiMonitor = ({ runtime, ims }) => {
   const formatResponseTime = (time) => {
     if (time < 1000) return `${time}ms`
     return `${(time / 1000).toFixed(2)}s`
+  }
+
+  const formatTimestamp = (timestamp) => {
+    return timestamp ? new Date(timestamp).toLocaleString() : ''
   }
   
   const getStatusColor = (status) => {
@@ -751,6 +886,78 @@ export const ApiMonitor = ({ runtime, ims }) => {
             </Grid>
           </Well>
         )}
+
+        <Well marginTop="size-200">
+          <Flex direction="column" gap="size-200">
+            <Flex justifyContent="space-between" alignItems="end" wrap gap="size-200">
+              <View flex="1">
+                <TextField
+                  label="User identifier"
+                  value={sessionLookupUserIdentifier}
+                  onChange={setSessionLookupUserIdentifier}
+                />
+              </View>
+              <ButtonGroup>
+                <Button
+                  variant="secondary"
+                  onPress={() => loadSessionList(sessionLookupUserIdentifier)}
+                  isDisabled={sessionsLoading || !sessionLookupUserIdentifier}
+                >
+                  <Refresh />
+                  <Text>Refresh Sessions</Text>
+                </Button>
+              </ButtonGroup>
+            </Flex>
+
+            {sessionsLoading ? (
+              <Flex justifyContent="center">
+                <ProgressBar aria-label="Loading sessions" isIndeterminate />
+              </Flex>
+            ) : (
+              <TableView aria-label="API Monitor sessions" selectionMode="none" maxHeight="size-3600">
+                <TableHeader>
+                  <Column key="sessionId" width="24%">Session ID</Column>
+                  <Column key="description" width="22%">Description</Column>
+                  <Column key="created" width="14%">Created</Column>
+                  <Column key="lastActivity" width="14%">Last Activity</Column>
+                  <Column key="requests" width="8%">Outbound</Column>
+                  <Column key="webhooks" width="8%">Inbound</Column>
+                  <Column key="actions" width="10%">Actions</Column>
+                </TableHeader>
+                <TableBody>
+                  {availableSessions.map((session) => (
+                    <Row key={session.sessionId}>
+                      <Cell><Text>{session.sessionId}</Text></Cell>
+                      <Cell><Text>{session.description || ''}</Text></Cell>
+                      <Cell><Text>{formatTimestamp(session.created)}</Text></Cell>
+                      <Cell><Text>{formatTimestamp(session.lastActivity)}</Text></Cell>
+                      <Cell><Text>{session.requestCount || 0}</Text></Cell>
+                      <Cell><Text>{session.webhookCount || 0}</Text></Cell>
+                      <Cell>
+                        <Flex gap="size-50" wrap>
+                          <ActionButton
+                            isQuiet
+                            onPress={() => connectToSession(session.sessionId)}
+                            aria-label={`Connect to ${session.sessionId}`}
+                          >
+                            <Link />
+                          </ActionButton>
+                          <ActionButton
+                            isQuiet
+                            onPress={() => openDescriptionDialog(session)}
+                            aria-label={`Edit description for ${session.sessionId}`}
+                          >
+                            <Edit />
+                          </ActionButton>
+                        </Flex>
+                      </Cell>
+                    </Row>
+                  ))}
+                </TableBody>
+              </TableView>
+            )}
+          </Flex>
+        </Well>
       </View>
       
       {/* Main Content Tabs */}
@@ -1215,6 +1422,42 @@ export const ApiMonitor = ({ runtime, ims }) => {
           </TabPanels>
         </Tabs>
       )}
+
+      <DialogTrigger isOpen={showDescriptionDialog} onOpenChange={setShowDescriptionDialog}>
+        <ActionButton isHidden>Edit session description</ActionButton>
+        {(close) => (
+          <Dialog>
+            <Heading>Edit Description</Heading>
+            <Divider />
+            <Content>
+              <Flex direction="column" gap="size-200">
+                <Text>{selectedSessionForDescription?.sessionId || ''}</Text>
+                <TextArea
+                  label="Description"
+                  value={descriptionDraft}
+                  onChange={setDescriptionDraft}
+                  width="100%"
+                />
+              </Flex>
+            </Content>
+            <ButtonGroup>
+              <Button variant="secondary" onPress={close}>Cancel</Button>
+              <Button
+                variant="cta"
+                onPress={async () => {
+                  const saved = await saveSessionDescription()
+                  if (saved) {
+                    close()
+                  }
+                }}
+                isDisabled={sessionsLoading}
+              >
+                Save
+              </Button>
+            </ButtonGroup>
+          </Dialog>
+        )}
+      </DialogTrigger>
     </Flex>
   )
 }

@@ -1,44 +1,23 @@
 // Access Control Utility
-// This utility manages which users can access specific features based on their email addresses.
+// Dynamic access policies are loaded from the access-management action; static defaults keep local and fallback behavior stable.
 
 var $RefreshReg$ = typeof globalThis !== 'undefined' && globalThis.$RefreshReg$
   ? globalThis.$RefreshReg$
   : function () {}
 
-const ACCESS_GROUPS = Object.freeze({
-  coreDemoUsers: Object.freeze([
-    'aajani@adobe.com',
-    'arfrank@adobe.com',
-    'dsousa@adobe.com',
-    'demoaccounts+usnamed@adobetest.com',
-    'dumiller@adobe.com',
-    'cherot@adobe.com',
-    'gesmith@adobe.com',
-    'jmagana@adobe.com',
-    'lpadia@adobe.com',
-    'msimpson@adobe.com',
-    'gillies@adobe.com',
-    'jauw@adobe.com',
-    'pankajp@adobe.com',
-    'picklesi@adobe.com',
-    'phjohnso@adobe.com',
-    'rnair@adobe.com',
-    'risharma@adobe.com',
-    'ryanr@adobe.com',
-    'gruer@adobe.com',
-    'jhandei@adobe.com',
-    'apowers@adobe.com'
-  ]),
-  extendedUtilityUsers: Object.freeze([
-    'delapena@adobe.com'
-  ]),
-  fileUtilityUsers: Object.freeze([
-    'abbey@adobe.com'
-  ]),
-  apiDocumentationUsers: Object.freeze([
-    'ivory@adobe.com'
-  ])
-})
+const {
+  ACCESS_GROUPS,
+  ACCESS_MODE_ALLOWLIST,
+  ACCESS_MODE_PUBLIC,
+  ADMINISTRATION_FEATURE_KEY,
+  DEFAULT_ADMINISTRATOR_EMAIL,
+  FEATURE_ACCESS_DEFINITIONS,
+  createDefaultPolicyDocument,
+  evaluateFeatureAccess,
+  normalizeEmail,
+  normalizeEmailList,
+  normalizePolicyDocument
+} = require('../../../actions/shared/accessPolicy')
 
 const ACCESS_POLICY_GROUPS = Object.freeze({
   userManagement: Object.freeze(['coreDemoUsers']),
@@ -53,47 +32,34 @@ const ACCESS_POLICY_GROUPS = Object.freeze({
   admin: Object.freeze(['coreDemoUsers'])
 })
 
-const ACCESS_POLICY_LABELS = Object.freeze({
-  userManagement: 'User Management',
-  aepOverview: 'AEP Overview',
-  jmeterTesting: 'Jmeter Testing',
-  fileManager: 'File Manager',
+const ACCESS_POLICY_LABELS = Object.freeze(FEATURE_ACCESS_DEFINITIONS.reduce((labels, definition) => {
+  labels[definition.key] = definition.label
+  return labels
+}, {
   apiTester: 'API Tester',
-  apiDocumentation: 'API Documentation',
-  contentMigrator: 'Content Migrator',
   aiProfileInjector: 'AI AEP Profile Injector',
   apiProxy: 'API Proxy',
+  contentMigrator: 'Content Migrator',
   admin: 'admin features'
-})
+}))
 
-function getUniqueEmails(groupNames) {
-  const emails = []
-  for (const groupName of groupNames || []) {
-    for (const email of ACCESS_GROUPS[groupName] || []) {
-      if (!emails.includes(email)) {
-        emails.push(email)
-      }
+function getDefaultPolicyDocument() {
+  return createDefaultPolicyDocument({
+    source: {
+      administrator: DEFAULT_ADMINISTRATOR_EMAIL
     }
-  }
-  return emails
+  })
 }
 
-function freezePolicyEmails(featureKey) {
-  return Object.freeze(getUniqueEmails(ACCESS_POLICY_GROUPS[featureKey]))
+function getDefaultAllowedEmailsByFeature() {
+  const policyDocument = getDefaultPolicyDocument()
+  return Object.keys(policyDocument.featurePolicies).reduce((allowedByFeature, featureKey) => {
+    allowedByFeature[featureKey] = policyDocument.featurePolicies[featureKey].allowedEmails
+    return allowedByFeature
+  }, {})
 }
 
-const ACCESS_POLICIES = Object.freeze({
-  userManagement: freezePolicyEmails('userManagement'),
-  aepOverview: freezePolicyEmails('aepOverview'),
-  jmeterTesting: freezePolicyEmails('jmeterTesting'),
-  fileManager: freezePolicyEmails('fileManager'),
-  apiTester: freezePolicyEmails('apiTester'),
-  apiDocumentation: freezePolicyEmails('apiDocumentation'),
-  contentMigrator: freezePolicyEmails('contentMigrator'),
-  aiProfileInjector: freezePolicyEmails('aiProfileInjector'),
-  apiProxy: freezePolicyEmails('apiProxy'),
-  admin: freezePolicyEmails('admin')
-})
+const ACCESS_POLICIES = Object.freeze(getDefaultAllowedEmailsByFeature())
 
 function getFirstStringValue(values) {
   for (const value of values) {
@@ -104,38 +70,6 @@ function getFirstStringValue(values) {
 
   return null
 }
-
-function normalizeEmail(ims) {
-  const userEmail = getUserEmail(ims)
-  return userEmail ? userEmail.toLowerCase() : null
-}
-
-function hasAccess(featureKey, ims) {
-  const userEmail = normalizeEmail(ims)
-  const featureLabel = ACCESS_POLICY_LABELS[featureKey] || featureKey
-
-  if (!userEmail) {
-    console.warn(`No email found in IMS profile, denying access to ${featureLabel}`)
-    return false
-  }
-
-  return (ACCESS_POLICIES[featureKey] || []).includes(userEmail)
-}
-
-function createAccessChecker(featureKey) {
-  return (ims) => hasAccess(featureKey, ims)
-}
-
-const hasUserManagementAccess = createAccessChecker('userManagement')
-const hasAEPOverviewAccess = createAccessChecker('aepOverview')
-const hasJmeterTestingAccess = createAccessChecker('jmeterTesting')
-const hasFileManagerAccess = createAccessChecker('fileManager')
-const hasApiTesterAccess = createAccessChecker('apiTester')
-const hasApiDocumentationAccess = createAccessChecker('apiDocumentation')
-const hasContentMigratorAccess = createAccessChecker('contentMigrator')
-const hasAIProfileInjectorAccess = createAccessChecker('aiProfileInjector')
-const hasApiProxyAccess = createAccessChecker('apiProxy')
-const hasAdminAccess = createAccessChecker('admin')
 
 function getUserEmail(ims) {
   return getFirstStringValue([
@@ -149,24 +83,125 @@ function getUserEmail(ims) {
   ])
 }
 
-function getUserAccessPermissions(ims) {
+function normalizeImsEmail(ims) {
+  return normalizeEmail(getUserEmail(ims))
+}
+
+function createStaticAccessState(options = {}) {
   return {
-    userManagement: hasUserManagementAccess(ims),
-    aepOverview: hasAEPOverviewAccess(ims),
-    jmeterTesting: hasJmeterTestingAccess(ims),
-    fileManager: hasFileManagerAccess(ims),
-    apiTester: hasApiTesterAccess(ims),
-    apiDocumentation: hasApiDocumentationAccess(ims),
-    contentMigrator: hasContentMigratorAccess(ims),
-    aiProfileInjector: hasAIProfileInjectorAccess(ims),
-    apiProxy: hasApiProxyAccess(ims),
-    admin: hasAdminAccess(ims)
+    source: options.source || 'static',
+    permissions: null,
+    isAdmin: false,
+    backendAdminVerified: false,
+    policiesLoaded: false,
+    loadError: options.loadError || null,
+    userEmail: options.userEmail || null
   }
 }
 
-function getAllowedEmailsByFeature() {
-  return Object.keys(ACCESS_POLICIES).reduce((allowedByFeature, featureKey) => {
-    allowedByFeature[featureKey] = ACCESS_POLICIES[featureKey]
+function buildAccessStateFromResponse(response) {
+  if (!response || response.success !== true || !response.permissions) {
+    return createStaticAccessState({
+      source: 'fallback',
+      loadError: response && response.error ? response.error : 'Access policies unavailable'
+    })
+  }
+
+  return {
+    source: 'dynamic',
+    permissions: response.permissions,
+    isAdmin: response.isAdmin === true,
+    backendAdminVerified: response.isAdmin === true,
+    policiesLoaded: response.policiesLoaded === true,
+    loadError: null,
+    userEmail: response.userEmail || null
+  }
+}
+
+function hasDynamicPermission(featureKey, accessState) {
+  return Boolean(
+    accessState &&
+    accessState.permissions &&
+    Object.prototype.hasOwnProperty.call(accessState.permissions, featureKey)
+  )
+}
+
+function hasFeatureAccess(featureKey, ims, accessState) {
+  const normalizedFeatureKey = featureKey === 'admin'
+    ? ADMINISTRATION_FEATURE_KEY
+    : featureKey
+
+  if (normalizedFeatureKey === ADMINISTRATION_FEATURE_KEY) {
+    return Boolean(accessState && accessState.backendAdminVerified && accessState.isAdmin)
+  }
+
+  if (hasDynamicPermission(normalizedFeatureKey, accessState)) {
+    return accessState.permissions[normalizedFeatureKey] === true
+  }
+
+  const userEmail = normalizeImsEmail(ims)
+  const featureLabel = ACCESS_POLICY_LABELS[normalizedFeatureKey] || normalizedFeatureKey
+  const policyDocument = getDefaultPolicyDocument()
+  const policy = normalizePolicyDocument(policyDocument).featurePolicies[normalizedFeatureKey]
+
+  if (policy && policy.mode === ACCESS_MODE_PUBLIC) {
+    return true
+  }
+
+  if (!userEmail) {
+    console.warn(`No email found in IMS profile, denying access to ${featureLabel}`)
+    return false
+  }
+
+  return evaluateFeatureAccess(policyDocument, normalizedFeatureKey, userEmail, {
+    source: {
+      administrator: DEFAULT_ADMINISTRATOR_EMAIL
+    }
+  })
+}
+
+function createAccessChecker(featureKey) {
+  return (ims, accessState) => hasFeatureAccess(featureKey, ims, accessState)
+}
+
+const hasUserManagementAccess = createAccessChecker('userManagement')
+const hasAEPOverviewAccess = createAccessChecker('aepOverview')
+const hasJmeterTestingAccess = createAccessChecker('jmeterTesting')
+const hasFileManagerAccess = createAccessChecker('fileManager')
+const hasApiTesterAccess = createAccessChecker('apiMonitor')
+const hasApiDocumentationAccess = createAccessChecker('apiDocumentation')
+const hasContentMigratorAccess = createAccessChecker('contentTemplateMigrator')
+const hasAIProfileInjectorAccess = createAccessChecker('aepProfileInjector')
+const hasApiProxyAccess = createAccessChecker('proxyManager')
+const hasAdminAccess = createAccessChecker(ADMINISTRATION_FEATURE_KEY)
+
+function getUserAccessPermissions(ims, accessState) {
+  const permissions = FEATURE_ACCESS_DEFINITIONS.reduce((summary, definition) => {
+    summary[definition.key] = hasFeatureAccess(definition.key, ims, accessState)
+    return summary
+  }, {})
+
+  permissions.apiTester = permissions.apiMonitor
+  permissions.contentMigrator = permissions.contentTemplateMigrator
+  permissions.aiProfileInjector = permissions.aepProfileInjector
+  permissions.apiProxy = permissions.proxyManager
+  permissions.admin = permissions[ADMINISTRATION_FEATURE_KEY]
+
+  return permissions
+}
+
+function getAllowedEmailsByFeature(policyDocument) {
+  const normalizedDocument = normalizePolicyDocument(policyDocument || getDefaultPolicyDocument(), {
+    source: {
+      administrator: DEFAULT_ADMINISTRATOR_EMAIL
+    }
+  })
+
+  return Object.keys(normalizedDocument.featurePolicies).reduce((allowedByFeature, featureKey) => {
+    const policy = normalizedDocument.featurePolicies[featureKey]
+    allowedByFeature[featureKey] = policy.mode === ACCESS_MODE_ALLOWLIST
+      ? normalizeEmailList(policy.allowedEmails)
+      : []
     return allowedByFeature
   }, {})
 }
@@ -190,11 +225,11 @@ function isDebugEnabled(ims, options = {}) {
 function logAccessControlInfo(ims, options = {}) {
   const info = {
     userEmail: getUserEmail(ims),
-    permissions: getUserAccessPermissions(ims)
+    permissions: getUserAccessPermissions(ims, options.accessState)
   }
 
   if (isDebugEnabled(ims, options)) {
-    info.allowedEmailsByFeature = getAllowedEmailsByFeature()
+    info.allowedEmailsByFeature = getAllowedEmailsByFeature(options.policyDocument)
   }
 
   console.log('Access Control Info:', info)
@@ -202,8 +237,14 @@ function logAccessControlInfo(ims, options = {}) {
 
 module.exports = {
   ACCESS_GROUPS,
+  ACCESS_MODE_ALLOWLIST,
+  ACCESS_MODE_PUBLIC,
   ACCESS_POLICIES,
   ACCESS_POLICY_GROUPS,
+  ADMINISTRATION_FEATURE_KEY,
+  FEATURE_ACCESS_DEFINITIONS,
+  buildAccessStateFromResponse,
+  createStaticAccessState,
   getAllowedEmailsByFeature,
   getFirstStringValue,
   getUserAccessPermissions,
@@ -215,6 +256,7 @@ module.exports = {
   hasApiProxyAccess,
   hasApiTesterAccess,
   hasContentMigratorAccess,
+  hasFeatureAccess,
   hasFileManagerAccess,
   hasJmeterTestingAccess,
   hasUserManagementAccess,

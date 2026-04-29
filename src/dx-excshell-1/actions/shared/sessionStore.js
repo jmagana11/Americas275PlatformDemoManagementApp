@@ -23,6 +23,21 @@ function getApiMonitorSessionBlobPath(userId, sessionId) {
   return `api-monitor/DO_NOT_DELETE_APPBUILDER_${userId}_${sessionId}.json`
 }
 
+function getApiMonitorSessionBlobPrefix(userId) {
+  return `api-monitor/DO_NOT_DELETE_APPBUILDER_${userId}_`
+}
+
+function getSessionIdFromApiMonitorSessionBlobPath(userId, blobPath) {
+  const prefix = getApiMonitorSessionBlobPrefix(userId)
+  const suffix = '.json'
+
+  if (!blobPath || !blobPath.startsWith(prefix) || !blobPath.endsWith(suffix)) {
+    return null
+  }
+
+  return blobPath.slice(prefix.length, -suffix.length)
+}
+
 function getApiMonitorWebhookEventPrefix(sessionId) {
   return `api-monitor/events/${sessionId}/webhooks/`
 }
@@ -242,12 +257,14 @@ module.exports = {
   createProxySessionData,
   ensureArray,
   getApiMonitorSessionBlobPath,
+  getApiMonitorSessionBlobPrefix,
   getApiMonitorWebhookEventBlobPath,
   getApiMonitorWebhookEventPrefix,
   getApiProxySessionBlobPath,
   getApiProxyUserSessionBlobPath,
   getSessionManagerBlobPath,
   listSessionEvents,
+  getSessionIdFromApiMonitorSessionBlobPath,
   normalizeApiMonitorSessionData,
   normalizeApiProxyUserSessionData,
   normalizeFeatureSessionDocument,

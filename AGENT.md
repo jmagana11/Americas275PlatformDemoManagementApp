@@ -11,7 +11,7 @@ This file gives future agent sessions enough context to work safely without re-l
 - App Builder config:
   - Root app config: `app.config.yaml`
   - Extension config: `src/dx-excshell-1/ext.config.yaml`
-- Runtime action count: 39 declared actions.
+- Runtime action count: 40 declared actions.
 - Runtime target is intentionally still `nodejs:16`.
 - Node runtime upgrade planning should target the newest Adobe I/O Runtime LTS kind supported at implementation time. As of 2026-04-29, Node 20 is at EOL on 2026-04-30, so do not plan a new migration to Node 20.
 - Deployment workflows are manual-only. Merging to `main` should not deploy this app by itself.
@@ -22,6 +22,7 @@ This file gives future agent sessions enough context to work safely without re-l
 - M4 is complete locally: API Monitor, API Proxy, and session-manager storage paths are documented, new/re-written session records use `storageSchemaVersion: 1`, and all three areas use shared schema/path normalization helpers while preserving existing blob paths.
 - M8 is complete locally: User Management, Content Template Migrator, Segment Refresh sandbox org pickers, org-aware auth actions, content templates, and sandbox lookups use the shared org config model and non-secret org metadata endpoint.
 - M5/M6 are complete locally: routes/sidebar navigation use a shared frontend feature registry, access control uses named groups plus feature policies without logging full allowlists by default, identity resolution handles common IMS email fields, and local raw bootstrap uses a non-secret mock IMS profile so protected navigation appears during local smoke testing outside Experience Cloud Shell.
+- Active administration milestone is in progress locally: dynamic feature access policies are backed by Azure Blob Storage, `jmagana@adobe.com` is the bootstrap administrator through the `administrator` Runtime input, and API Monitor sessions can be listed/described by existing API Monitor user identifier.
 
 ## Non-Negotiables
 
@@ -44,6 +45,7 @@ aio app build
 - Because of that, monitor/logger actions must filter Runtime inputs before storing or rendering request payloads.
 - Current redaction utilities live in `src/dx-excshell-1/actions/shared/redaction.js`.
 - Shared config utilities live in `src/dx-excshell-1/actions/shared/config.js`.
+- Shared access policy utilities live in `src/dx-excshell-1/actions/shared/accessPolicy.js`.
 - Shared storage schema utilities live in `src/dx-excshell-1/actions/shared/sessionStore.js`.
 - App-owned duplicate env values should resolve through canonical inputs first, with legacy names kept only as temporary aliases in the resolver.
 - Frontend action URLs come from generated App Builder config imported as `allActions` from `src/dx-excshell-1/web-src/src/config.json`.
@@ -60,6 +62,7 @@ src/dx-excshell-1/actions/shared/redaction.js
 src/dx-excshell-1/web-src/src/components/
 src/dx-excshell-1/web-src/src/components/App.js
 src/dx-excshell-1/web-src/src/components/SideBar.js
+src/dx-excshell-1/web-src/src/components/Administration.js
 src/dx-excshell-1/web-src/src/appRegistry.js
 src/dx-excshell-1/web-src/src/utils/accessControl.js
 src/dx-excshell-1/web-src/src/utils/actionUrls.js
@@ -156,4 +159,4 @@ aio app build
 
 ## Suggested First Follow-Up
 
-Start with Milestone M7 in `docs/APP_REFACTOR_PLAN.md`: AEP backend helper cluster. M5/M6 and M8 are complete locally, so M7 is now the next high-value backend helper cluster.
+Finish and smoke test the active Administration UI and API Monitor session-management milestone, then continue with roadmap items such as the AEP backend helper cluster.
