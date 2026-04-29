@@ -1,84 +1,80 @@
-/* 
+/*
 * <license header>
 */
 
-jest.mock('@adobe/aio-sdk', () => ({
-  Core: {
-    Logger: jest.fn()
-  }
+jest.mock('axios', () => ({
+  get: jest.fn()
 }))
 
-const { Core } = require('@adobe/aio-sdk')
-const mockLoggerInstance = { info: jest.fn(), debug: jest.fn(), error: jest.fn() }
-Core.Logger.mockReturnValue(mockLoggerInstance)
-
-jest.mock('node-fetch')
-const fetch = require('node-fetch')
+const axios = require('axios')
 const action = require('./../actions/generic/index.js')
 
 beforeEach(() => {
-  Core.Logger.mockClear()
-  mockLoggerInstance.info.mockReset()
-  mockLoggerInstance.debug.mockReset()
-  mockLoggerInstance.error.mockReset()
+  axios.get.mockReset()
 })
 
 const fakeParams = { __ow_headers: { authorization: 'Bearer fake' } }
+
 describe('generic', () => {
   test('main should be defined', () => {
     expect(action.main).toBeInstanceOf(Function)
   })
-  test('should set logger to use LOG_LEVEL param', async () => {
-    await action.main({ ...fakeParams, LOG_LEVEL: 'fakeLevel' })
-    expect(Core.Logger).toHaveBeenCalledWith(expect.any(String), { level: 'fakeLevel' })
-  })
-  test('should return an http reponse with the fetched content', async () => {
-    const mockFetchResponse = {
-      ok: true,
-      json: () => Promise.resolve({ content: 'fake' })
-    }
-    fetch.mockResolvedValue(mockFetchResponse)
+
+  test('should return an http response with the fetched content', async () => {
+    axios.get.mockResolvedValue({ data: { content: 'fake' } })
+
     const response = await action.main(fakeParams)
+
+    expect(axios.get).toHaveBeenCalledWith('https://adobeioruntime.net/api/v1', {
+      headers: {
+        Authorization: 'Bearer fake',
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    })
     expect(response).toEqual({
       statusCode: 200,
       body: { content: 'fake' }
     })
   })
-  test('if there is an error should return a 500 and log the error', async () => {
-    const fakeError = new Error('fake')
-    fetch.mockRejectedValue(fakeError)
-    const response = await action.main(fakeParams)
-    expect(response).toEqual({
-      error: {
-        statusCode: 500,
-        body: { error: 'server error' }
+
+  test('if axios returns a service error should return that status and details', async () => {
+    axios.get.mockRejectedValue({
+      message: 'request failed',
+      response: {
+        status: 404,
+        data: { error: 'not found' }
       }
     })
-    expect(mockLoggerInstance.error).toHaveBeenCalledWith(fakeError)
-  })
-  test('if returned service status code is not ok should return a 500 and log the status', async () => {
-    const mockFetchResponse = {
-      ok: false,
-      status: 404
-    }
-    fetch.mockResolvedValue(mockFetchResponse)
+
     const response = await action.main(fakeParams)
+
     expect(response).toEqual({
-      error: {
-        statusCode: 500,
-        body: { error: 'server error' }
+      statusCode: 404,
+      body: {
+        error: 'Generic API failed with status: 404',
+        details: { error: 'not found' }
       }
     })
-    // error message should contain 404
-    expect(mockLoggerInstance.error).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('404') }))
   })
-  test('missing input request parameters, should return 400', async () => {
+
+  test('if axios throws should return a 500 with details', async () => {
+    axios.get.mockRejectedValue(new Error('fake'))
+
+    const response = await action.main(fakeParams)
+
+    expect(response).toEqual({
+      statusCode: 500,
+      body: { error: 'Internal server error', details: 'fake' }
+    })
+  })
+
+  test('missing authorization should return 400', async () => {
     const response = await action.main({})
+
     expect(response).toEqual({
-      error: {
-        statusCode: 400,
-        body: { error: 'missing header(s) \'authorization\'' }
-      }
+      statusCode: 400,
+      body: { error: 'Missing or invalid Authorization header' }
     })
   })
 })

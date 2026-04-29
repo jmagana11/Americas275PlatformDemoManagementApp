@@ -42,11 +42,12 @@ async function main (params) {
     // extract the user Bearer token from the Authorization header
     const token = getBearerToken(params)
 
+    const headers = params.__ow_headers || {}
     const ims_headers = {
       'Authorization': `Bearer ${token}`,
       'x-api-key': params.apiKey,
       'x-gw-ims-org-id': params.orgId,
-      'x-sandbox-name': params.__ow_headers.sandboxname,
+      'x-sandbox-name': headers.sandboxname,
     }
 
     const options = {
@@ -57,7 +58,7 @@ async function main (params) {
     logger.info("  RAW Options: " + JSON.stringify(options));
 
     // replace this with the api you want to access
-    const apiEndpoint = 'https://platform.adobe.io/data/core/ups/segment/jobs/' + params.__ow_headers.jobid
+    const apiEndpoint = 'https://platform.adobe.io/data/core/ups/segment/jobs/' + headers.jobid
 
     // fetch content from external api endpoint
     const res = await fetch(apiEndpoint, options)

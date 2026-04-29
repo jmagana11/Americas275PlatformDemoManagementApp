@@ -1,0 +1,21 @@
+{
+  "name": "@adobe/aio-action-session-manager",
+  "version": "1.0.0",
+  "description": "Session management for AEP Profile Injector using Azure Blob Storage",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.17.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "adobeio",
+    "action",
+    "session-management",
+    "azure-blob"
+  ],
+  "author": "Adobe",
+  "license": "Apache-2.0"
+} 

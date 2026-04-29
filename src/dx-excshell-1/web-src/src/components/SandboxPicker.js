@@ -34,15 +34,31 @@ function SandboxPicker(props){
     }
 
     useEffect(() => {
+        let isMounted = true;
+        
         fetch(allActions.getsandboxes, fetchConfig)
             .then((response) => response.json())
             .then((data) => {
-                const options = data.sandboxes.map((item) => ({
-                    name: item.name,
-                    value: item.eTag
-                }));
-                setFirstPickerItems(options);
+                // Only update state if component is still mounted
+                if (isMounted) {
+                    const options = data.sandboxes.map((item) => ({
+                        name: item.name,
+                        value: item.eTag
+                    }));
+                    setFirstPickerItems(options);
+                }
+            })
+            .catch((error) => {
+                // Only log error if component is still mounted
+                if (isMounted) {
+                    console.error('Error fetching sandboxes:', error);
+                }
             });
+        
+        // Cleanup function to prevent memory leaks
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
 

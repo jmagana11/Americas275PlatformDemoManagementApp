@@ -1,0 +1,10 @@
+{
+  "name": "webhook-receiver",
+  "version": "1.0.0",
+  "description": "Webhook receiver action for API monitoring",
+  "main": "index.js",
+  "dependencies": {
+    "uuid": "^8.3.2",
+    "@azure/storage-blob": "^12.15.0"
+  }
+} 

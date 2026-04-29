@@ -42,13 +42,16 @@ describe('stringParameters', () => {
     const params = {
       a: 1, b: 2, __ow_headers: { 'x-api-key': 'fake-api-key' }
     }
-    expect(utils.stringParameters(params)).toEqual(JSON.stringify(params))
+    expect(utils.stringParameters(params)).toEqual(JSON.stringify({
+      a: 1, b: 2, __ow_headers: { 'x-api-key': '<redacted>' }
+    }))
   })
   test('with auth header', () => {
     const params = {
       a: 1, b: 2, __ow_headers: { 'x-api-key': 'fake-api-key', authorization: 'secret' }
     }
-    expect(utils.stringParameters(params)).toEqual(expect.stringContaining('"authorization":"<hidden>"'))
+    expect(utils.stringParameters(params)).toEqual(expect.stringContaining('"authorization":"<redacted>"'))
+    expect(utils.stringParameters(params)).not.toEqual(expect.stringContaining('fake-api-key'))
     expect(utils.stringParameters(params)).not.toEqual(expect.stringContaining('secret'))
   })
 })

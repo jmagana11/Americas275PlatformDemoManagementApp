@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Dialog, AlertDialog, DialogTrigger, Switch, Divider, Slider, ProgressBar, Item, Form, TextField, ActionButton, ListBox, Heading, Flex, DialogContainer, StatusLight, ContextualHelp, Content, Text, NumberField } from '@adobe/react-spectrum'
+import { Dialog, AlertDialog, DialogTrigger, Divider, Slider, ProgressBar, Item, Form, TextField, ActionButton, ListBox, Heading, Flex, DialogContainer, StatusLight, ContextualHelp, Content, Text, NumberField, Picker } from '@adobe/react-spectrum'
 import ConfirmDialogJmeter from './ConfirmDialogJmeter'
-import SandboxPicker from './SandboxPicker'
 import allActions from '../config.json'
 
 function JmeterTestwoFolders(props) {
@@ -31,8 +30,133 @@ function JmeterTestwoFolders(props) {
     const [unsubscribe, setUnsubscribe] = useState(false);
     const [result, setResult] = useState('');
     const [globalSetErrors, setGlobalSetErrors] = useState("yellow");
-    const [manualMode, setManualMode] = useState(false);
-    const [logFileName, setLogFileName] = useState("");
+    const [logFileName, setLogFileName] = useState("abbey_cjmadobe");
+
+    const inboxConfigOptions = [
+        "abbey_cjmadobe",
+        "acc_americas90",
+        "acc_ma1",
+        "acc_pot5",
+        "ajosand",
+        "demo_cjmadobe",
+        "jfiur_cjmadobe",
+        "jousa_svpoc_abbey_beta",
+        "ma1_demo1",
+        "ma1_demo10",
+        "ma1_demo11",
+        "ma1_demo12",
+        "ma1_demo13",
+        "ma1_demo14",
+        "ma1_demo15",
+        "ma1_demo16",
+        "ma1_demo17",
+        "ma1_demo18",
+        "ma1_demo19",
+        "ma1_demo2",
+        "ma1_demo20",
+        "ma1_demo3",
+        "ma1_demo4",
+        "ma1_demo5",
+        "ma1_demo6",
+        "ma1_demo7",
+        "ma1_demo8",
+        "ma1_esphol1",
+        "ma1_hol1",
+        "ma1_hol10",
+        "ma1_hol11",
+        "ma1_hol12",
+        "ma1_hol13",
+        "ma1_hol14",
+        "ma1_hol15",
+        "ma1_hol16",
+        "ma1_hol17",
+        "ma1_hol18",
+        "ma1_hol19",
+        "ma1_hol2",
+        "ma1_hol20",
+        "ma1_hol3",
+        "ma1_hol4",
+        "ma1_hol5",
+        "ma1_hol6",
+        "ma1_hol7",
+        "ma1_hol8",
+        "ma1_poc1",
+        "ma1_poc10",
+        "ma1_poc11",
+        "ma1_poc12",
+        "ma1_poc13",
+        "ma1_poc14",
+        "ma1_poc15",
+        "ma1_poc16",
+        "ma1_poc17",
+        "ma1_poc18",
+        "ma1_poc19",
+        "ma1_poc2",
+        "ma1_poc20",
+        "ma1_poc3",
+        "ma1_poc4",
+        "ma1_poc5",
+        "ma1_poc6",
+        "ma1_poc7",
+        "ma1_poc8",
+        "pot5/pot5_demo1",
+        "pot5/pot5_demo10",
+        "pot5/pot5_demo11",
+        "pot5/pot5_demo12",
+        "pot5/pot5_demo13",
+        "pot5/pot5_demo14",
+        "pot5/pot5_demo15",
+        "pot5/pot5_demo16",
+        "pot5/pot5_demo17",
+        "pot5/pot5_demo18",
+        "pot5/pot5_demo19",
+        "pot5/pot5_demo2",
+        "pot5/pot5_demo20",
+        "pot5/pot5_demo3",
+        "pot5/pot5_demo4",
+        "pot5/pot5_demo5",
+        "pot5/pot5_demo6",
+        "pot5/pot5_demo7",
+        "pot5/pot5_demo8",
+        "pot5/pot5_hol1",
+        "pot5/pot5_hol10",
+        "pot5/pot5_hol11",
+        "pot5/pot5_hol12",
+        "pot5/pot5_hol13",
+        "pot5/pot5_hol14",
+        "pot5/pot5_hol15",
+        "pot5/pot5_hol16",
+        "pot5/pot5_hol17",
+        "pot5/pot5_hol18",
+        "pot5/pot5_hol19",
+        "pot5/pot5_hol2",
+        "pot5/pot5_hol20",
+        "pot5/pot5_hol3",
+        "pot5/pot5_hol4",
+        "pot5/pot5_hol5",
+        "pot5/pot5_hol6",
+        "pot5/pot5_hol7",
+        "pot5/pot5_hol8",
+        "pot5/pot5_poc1",
+        "pot5/pot5_poc10",
+        "pot5/pot5_poc11",
+        "pot5/pot5_poc12",
+        "pot5/pot5_poc13",
+        "pot5/pot5_poc14",
+        "pot5/pot5_poc15",
+        "pot5/pot5_poc16",
+        "pot5/pot5_poc17",
+        "pot5/pot5_poc18",
+        "pot5/pot5_poc19",
+        "pot5/pot5_poc2",
+        "pot5/pot5_poc20",
+        "pot5/pot5_poc3",
+        "pot5/pot5_poc4",
+        "pot5/pot5_poc5",
+        "pot5/pot5_poc6",
+        "pot5/pot5_poc7",
+        "pot5/pot5_poc8"
+    ];
 
     useEffect(() => {
         //validations:
@@ -48,7 +172,7 @@ function JmeterTestwoFolders(props) {
             setLinkError("positive")
         }
 
-        if (sandboxName.length > 0 &&
+        if (logFileName.length > 0 &&
             totalOpens > 0 &&
             mobExpPercentage > 0 &&
             desktopClicks > 0 &&
@@ -57,8 +181,10 @@ function JmeterTestwoFolders(props) {
 
             setGlobalSetErrors("positive");
             console.log("positive")
+        } else {
+            setGlobalSetErrors("yellow");
         }
-    }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink, sandboxName, logFile, totalOpens, mobExpPercentage, desktopClicks, mobileClicks, numberTrackingLinks]);
+    }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink, logFileName, totalOpens, mobExpPercentage, desktopClicks, mobileClicks, numberTrackingLinks]);
 
     function resetState() {
         //we reset the state after a successful submission...
@@ -82,6 +208,7 @@ function JmeterTestwoFolders(props) {
         setSocialPosition("");
         setUnsubPosition("");
         setUnsubscribe(false);
+        setLogFileName("abbey_cjmadobe");
     }
 
     function cleanSandboxName() {
@@ -130,7 +257,7 @@ function JmeterTestwoFolders(props) {
         const data = {
             "formBody": {
                 "jmeter": {
-                    "file_ref": manualMode ? logFileName : `${cleanSandboxName()}.jmx`,
+                    "file_ref": logFileName,
                     "total_opens": totalOpens,
                     "mobile_experience_pct": mobExpPercentage,
                     "desk_clicks_pct": desktopClicks,
@@ -166,7 +293,7 @@ function JmeterTestwoFolders(props) {
                 },
                 "options": {
                     "project": "jmeter_svpoc",
-                    "sandbox_name": sandboxName
+                    "sandbox_name": sandboxName || ""
                 }
             }
         }
@@ -179,37 +306,70 @@ function JmeterTestwoFolders(props) {
         }
     }
 
-    //This handles our custom sandbox picker
-    function handleSandboxSelection(selection) {
-        setSandboxName(selection);
-    }
-
     function callAction(data) {
         fetchConfig['body'] = data;
         fetchConfig['method'] = 'POST';
-        try {
-            fetch(allActions.jmeterNFemailTracking, fetchConfig)
-                .then((response) => response.json())
-                .then((data) => {
-                    if (data.pid) {
-                        setResult(JSON.stringify(data));
-                        set_IsJobLoading(false);
-                        setShowConfirmation(true);
-                        resetState();
-                        setGlobalSetErrors('yellow');
-                        console.log('Form submitted successfully:', data);
-                    } else {
-                        setResult(JSON.stringify(data));
-                        set_IsJobLoading(false);
-                        setShowConfirmation(true);
+        
+        console.log('Calling jmeter action with config:', fetchConfig);
+        
+        fetch(allActions.jmeterNFemailTracking, fetchConfig)
+            .then((response) => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    // Handle HTTP errors
+                    let errorMessage = `HTTP Error ${response.status}: ${response.statusText}`;
+                    
+                    if (response.status === 403) {
+                        errorMessage = 'Authorization failed (403). Please check your jmeterKey configuration.';
+                    } else if (response.status === 500) {
+                        errorMessage = 'Server error (500). Please try again later.';
+                    } else if (response.status === 400) {
+                        errorMessage = 'Bad request (400). Please check your input data.';
                     }
-
-                });
-        } catch (e) {
-            setResult(JSON.stringify(data));
-            set_IsJobLoading(false);
-            setShowConfirmation(true);
-        }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                return response.json();
+            })
+            .then((data) => {
+                console.log('Response data:', data);
+                
+                if (data.pid) {
+                    // Success case
+                    setResult(JSON.stringify(data, null, 2));
+                    set_IsJobLoading(false);
+                    setShowConfirmation(true);
+                    resetState();
+                    setGlobalSetErrors('yellow');
+                    console.log('Form submitted successfully:', data);
+                } else {
+                    // Response without pid - treat as error
+                    const errorData = {
+                        error: true,
+                        message: 'Response received but no process ID found',
+                        details: data
+                    };
+                    setResult(JSON.stringify(errorData, null, 2));
+                    set_IsJobLoading(false);
+                    setShowConfirmation(true);
+                }
+            })
+            .catch((error) => {
+                console.error('Error calling jmeter action:', error);
+                
+                const errorData = {
+                    error: true,
+                    message: error.message || 'An unexpected error occurred',
+                    details: error.toString()
+                };
+                
+                setResult(JSON.stringify(errorData, null, 2));
+                set_IsJobLoading(false);
+                setShowConfirmation(true);
+            });
     }
 
     return (
@@ -217,37 +377,21 @@ function JmeterTestwoFolders(props) {
             <Heading level={3}>Run Jmeter Test without specific folder requirement</Heading>
             <Heading level={4}>Global Settings:</Heading>
             <StatusLight variant={globalSetErrors}>You must provide all fields in this section.</StatusLight><br></br>
-            <Form isRequired={true} onSubmit={handleFormSubmission}>
-                <Flex direction="row">
-                    <Switch
-                        onChange={setManualMode}
-                        value={manualMode}>Would you like to enable manual mode?
-                    </Switch>
-                    <ContextualHelp variant="info">
-                        <Heading>Set Manual Mode</Heading>
-                        <Content>
-                            <Text>
-                                Enable the switch if you do not belong to the POC team, or your sandbox is outside of the Adobe-Demo-Americas-275 org.
-                            </Text>
-                        </Content>
-                    </ContextualHelp>
+            <Form onSubmit={handleFormSubmission}>
+                <Flex direction="row" gap="size-100">
+                    <TextField width="size-6000" label="Sandbox Name:" onChange={setSandboxName} value={sandboxName} />
+                    <Picker
+                        width="size-6000"
+                        label="Inbox Config:"
+                        selectedKey={logFileName}
+                        onSelectionChange={setLogFileName}
+                        isRequired={true}
+                    >
+                        {inboxConfigOptions.map((option) => (
+                            <Item key={option}>{option}</Item>
+                        ))}
+                    </Picker>
                 </Flex>
-                {manualMode ? 
-                                <Flex direction="row" gap="size-100">
-                                    <TextField width="size-6000"  isRequired={true} label="Sandbox Name:" onChange={setSandboxName} value={sandboxName} />
-                                    <TextField width="size-6000"  isRequired={true} label="Log File Name:" onChange={setLogFileName} value={logFileName}/>
-                                </Flex>
-                            :
-                                <Flex direction="row">
-                                    <SandboxPicker
-                                        contextualHelp={
-                                            {
-                                                "heading": "Sandbox Name",
-                                                "body": "This will determine which inbox should we look for the emails."
-                                            }}
-                                        ims={props.ims}
-                                        parentCallback={handleSandboxSelection} />
-                                </Flex>}
                 <br></br>
                 <Flex direction="row">
                     <Slider
@@ -270,318 +414,344 @@ function JmeterTestwoFolders(props) {
                 </Flex>
                 <Flex direction="row">
                     <Slider
+                        isRequired={true}
                         onChange={setMobExpPercentage}
                         width="size-6000"
-                        label="Mobile Experience %"
+                        label="Mobile Experience Percentage"
                         maxValue={100}
                         value={mobExpPercentage}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Mobile Experience %</Heading>
+                                <Heading>Mobile Experience Percentage</Heading>
                                 <Content>
                                     <Text>
-                                        From the total opens how many will be mobile.
+                                        Maximum 100.
                                     </Text>
                                 </Content>
                             </ContextualHelp>} />
                 </Flex>
                 <Flex direction="row">
                     <Slider
+                        isRequired={true}
                         onChange={setDesktopClicks}
                         width="size-6000"
-                        label="Desktop Clicks %"
+                        label="Desktop Clicks Percentage"
                         maxValue={100}
                         value={desktopClicks}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Desktop Clicks %</Heading>
+                                <Heading>Desktop Clicks Percentage</Heading>
                                 <Content>
                                     <Text>
-                                        How many clicks you want for desktop opens
+                                        Maximum 100.
                                     </Text>
                                 </Content>
                             </ContextualHelp>} />
-                </Flex >
+                </Flex>
                 <Flex direction="row">
                     <Slider
+                        isRequired={true}
                         onChange={setMobileClicks}
                         width="size-6000"
-                        label="Mobile Clicks %"
-                        value={mobileClicks}
+                        label="Mobile Clicks Percentage"
                         maxValue={100}
+                        value={mobileClicks}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Desktop Experience %</Heading>
+                                <Heading>Mobile Clicks Percentage</Heading>
                                 <Content>
                                     <Text>
-                                        This refers to the desktop version reporting.
+                                        Maximum 100.
                                     </Text>
                                 </Content>
                             </ContextualHelp>} />
-                </Flex >
+                </Flex>
                 <Flex direction="row">
                     <Slider
+                        isRequired={true}
                         onChange={setNumberTrackingLinks}
                         width="size-6000"
-                        label="# of Tracking Links"
-                        maxValue={20}
+                        label="Number of Tracking Links"
+                        maxValue={100}
                         value={numberTrackingLinks}
                         isFilled
                         contextualHelp={
                             <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Desktop Experience %</Heading>
+                                <Heading>Number of Tracking Links</Heading>
                                 <Content>
                                     <Text>
-                                        This refers to the desktop version reporting.
+                                        Maximum 100.
                                     </Text>
                                 </Content>
                             </ContextualHelp>} />
-                </Flex >
-                <br></br>
-                <Divider />
-                <br></br>
-                <Heading level={4}>
-                    Link Tracking Configuration:
-                </Heading>
-                <StatusLight variant={linkError}>All Link Tracking Percentages must provide a total of 100%</StatusLight><br></br>
-                <Heading align="center" level={1} color="red">Total: {mirrorLink + navLink + offerLink + productLink + socialLink + unsubLink} %</Heading>
-                <Flex direction="row" gap="size-1000">
-                    <Slider
-                        onChange={setMirrorLink}
-                        label="Mirror Link Tracking %"
-                        maxValue={100}
-                        value={mirrorLink}
-                        isFilled
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Mirror Link Tracking %</Heading>
-                                <Content>
-                                    <Text>
-                                        Set the % of click tracking for the mirror links.
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>} />
-                    <TextField
-                        onChange={setMirrorPosition}
-                        value={mirrorPosition}
-                        label="Mirror Link Positions"
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Mirror Link Positions</Heading>
-                                <Content>
-                                    <Text>
-                                        This field requires to enter a comma separated list of numbers.
-                                        Each number represents the position of the mirror links within your email.
-                                        Check the email editor link tracking to get the position.
-                                        Example: 1,2,3,4,5
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>
-                        } />
                 </Flex>
-                <Flex direction="row" gap="size-1000">
-                    <Slider
-                        onChange={setNavLink}
-                        label="Nav Link Tracking %"
-                        maxValue={100}
-                        value={navLink}
-                        isFilled
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Nav Link Tracking %</Heading>
-                                <Content>
-                                    <Text>
-                                        Set the % of click tracking for the Navigation links.
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>} />
-                    <TextField
-                        onChange={setNavLinkPosition}
-                        value={navLinkPosition}
-                        label="Nav Link Positions"
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Nav Link Positions</Heading>
-                                <Content>
-                                    <Text>
-                                        This field requires to enter a comma separated list of numbers.
-                                        Each number represents the position of the Navigation links within your email.
-                                        Check the email editor link tracking to get the position.
-                                        Example: 1,2,3,4,5
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>
-                        } />
-                </Flex>
-                <Flex direction="row" gap="size-1000">
-                    <Slider
-                        onChange={setOfferLink}
-                        label="Offer Link Tracking %"
-                        value={offerLink}
-                        maxValue={100}
-                        isFilled
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Offer Link Tracking %</Heading>
-                                <Content>
-                                    <Text>
-                                        Set the % of click tracking for the Offer links.
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>} />
-                    <TextField
-                        onChange={setOfferPosition}
-                        value={offerPosition}
-                        label="Offer Link Positions"
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Offer Link Positions</Heading>
-                                <Content>
-                                    <Text>
-                                        This field requires to enter a comma separated list of numbers.
-                                        Each number represents the position of the Offer links within your email.
-                                        Check the email editor link tracking to get the position.
-                                        Example: 1,2,3,4,5
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>
-                        } />
-                </Flex >
-                <Flex direction="row" gap="size-1000">
-                    <Slider
-                        onChange={setProductLink}
-                        label="Product Link Tracking %"
-                        maxValue={100}
-                        value={productLink}
-                        isFilled
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Product Link Tracking %</Heading>
-                                <Content>
-                                    <Text>
-                                        Set the % of click tracking for the Product links.
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>} />
-                    <TextField
-                        onChange={setProductPosition}
-                        label="Product Link Positions"
-                        value={productPosition}
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Product Link Tracking %</Heading>
-                                <Content>
-                                    <Text>
-                                        This field requires to enter a comma separated list of numbers.
-                                        Each number represents the position of the Product links within your email.
-                                        Check the email editor link tracking to get the position.
-                                        Example: 1,2,3,4,5
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>
-                        } />
-                </Flex >
-                <Flex direction="row" gap="size-1000">
-                    <Slider
-                        onChange={setSocialLink}
-                        label="Social Link Tracking %"
-                        maxValue={100}
-                        value={socialLink}
-                        isFilled
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Social Link Tracking %</Heading>
-                                <Content>
-                                    <Text>
-                                        Set the % of click tracking for the Social links.
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>} />
-                    <TextField
-                        onChange={setSocialPosition}
-                        value={socialPosition}
-                        label="Social Link Positions"
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Social Link Positions</Heading>
-                                <Content>
-                                    <Text>
-                                        This field requires to enter a comma separated list of numbers.
-                                        Each number represents the position of the social links within your email.
-                                        Check the email editor link tracking to get the position.
-                                        Example: 1,2,3,4,5
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>
-                        } />
-                </Flex >
-                <Flex direction="row" gap="size-1000">
-                    <Slider
-                        onChange={setUnsubLink}
-                        value={unsubLink}
-                        label="Unsub Link Tracking %"
-                        maxValue={100}
-                        isFilled
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Unsub Link Tracking %</Heading>
-                                <Content>
-                                    <Text>
-                                        Set the % of click tracking for the Unsubscribed/Opt-out links.
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>} />
-                    <TextField
-                        onChange={setUnsubPosition}
-                        value={unsubPosition}
-                        label="Unsubscribed Link Positions"
-                        contextualHelp={
-                            <ContextualHelp variant="info" placement="top start" flex>
-                                <Heading>Unsubscribed Link Positions</Heading>
-                                <Content>
-                                    <Text>
-                                        This field requires to enter a comma separated list of numbers.
-                                        Each number represents the position of the Unsubscribed links within your email.
-                                        Check the email editor link tracking to get the position.
-                                        Example: 1,2,3,4,5
-                                    </Text>
-                                </Content>
-                            </ContextualHelp>
-                        } />
-                </Flex >
-                <Switch
-                    onChange={setUnsubscribe}
-                    value={unsubscribe}
-                    contextualHelp={
-                        <ContextualHelp variant="info" placement="top start" flex>
-                            <Heading>Unsubscribed Link Positions</Heading>
-                            <Content>
-                                <Text>
-                                    This field requires to enter a comma separated list of numbers.
-                                    Each number represents the position of the Unsubscribed links within your email.
-                                    Check the email editor link tracking to get the position.
-                                    Example: 1,2,3,4,5
-                                </Text>
-                            </Content>
-                        </ContextualHelp>
-                    }>Would you like to totally unsubscribe users in the platform?</Switch>
+                <Heading level={4}>Link Distribution:</Heading>
+                <StatusLight variant={linkError}>The total percentage must be 100%</StatusLight><br></br>
+                <div style={{ marginBottom: '24px' }}>
+                    <Flex direction="column" gap="size-200">
+                        <Flex direction="row" alignItems="center" gap="size-600">
+                            <Slider
+                                isRequired={true}
+                                onChange={setMirrorLink}
+                                width="size-3200"
+                                label="Mirror Link Percentage"
+                                maxValue={100}
+                                value={mirrorLink}
+                                isFilled
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Mirror Link Percentage</Heading>
+                                        <Content>
+                                            <Text>
+                                                Maximum 100.
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                            <TextField
+                                width="size-4800"
+                                label="Mirror Link Positions"
+                                onChange={setMirrorPosition}
+                                value={mirrorPosition}
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Mirror Link Positions</Heading>
+                                        <Content>
+                                            <Text>
+                                                This field requires to enter a comma separated list of numbers.
+                                                Each number represents the position of the Mirror links within your email.
+                                                Check the email editor link tracking to get the position.
+                                                Example: 1,2,3,4,5
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                        </Flex>
+                        <Flex direction="row" alignItems="center" gap="size-600">
+                            <Slider
+                                isRequired={true}
+                                onChange={setNavLink}
+                                width="size-3200"
+                                label="Navigation Percentage"
+                                maxValue={100}
+                                value={navLink}
+                                isFilled
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Navigation Percentage</Heading>
+                                        <Content>
+                                            <Text>
+                                                Maximum 100.
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                            <TextField
+                                width="size-4800"
+                                label="Navigation Link Positions"
+                                onChange={setNavLinkPosition}
+                                value={navLinkPosition}
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Navigation Link Positions</Heading>
+                                        <Content>
+                                            <Text>
+                                                This field requires to enter a comma separated list of numbers.
+                                                Each number represents the position of the Navigation links within your email.
+                                                Check the email editor link tracking to get the position.
+                                                Example: 1,2,3,4,5
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                        </Flex>
+                        <Flex direction="row" alignItems="center" gap="size-600">
+                            <Slider
+                                isRequired={true}
+                                onChange={setOfferLink}
+                                width="size-3200"
+                                label="Offer Link Percentage"
+                                maxValue={100}
+                                value={offerLink}
+                                isFilled
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Offer Link Percentage</Heading>
+                                        <Content>
+                                            <Text>
+                                                Maximum 100.
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                            <TextField
+                                width="size-4800"
+                                label="Offer Link Positions"
+                                onChange={setOfferPosition}
+                                value={offerPosition}
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Offer Link Positions</Heading>
+                                        <Content>
+                                            <Text>
+                                                This field requires to enter a comma separated list of numbers.
+                                                Each number represents the position of the Offer links within your email.
+                                                Check the email editor link tracking to get the position.
+                                                Example: 1,2,3,4,5
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                        </Flex>
+                        <Flex direction="row" alignItems="center" gap="size-600">
+                            <Slider
+                                isRequired={true}
+                                onChange={setProductLink}
+                                width="size-3200"
+                                label="Product _ Percentage"
+                                maxValue={100}
+                                value={productLink}
+                                isFilled
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Product Percentage</Heading>
+                                        <Content>
+                                            <Text>
+                                                Maximum 100.
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                            <TextField
+                                width="size-4800"
+                                label="Product Link Positions"
+                                onChange={setProductPosition}
+                                value={productPosition}
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Product Link Positions</Heading>
+                                        <Content>
+                                            <Text>
+                                                This field requires to enter a comma separated list of numbers.
+                                                Each number represents the position of the Product links within your email.
+                                                Check the email editor link tracking to get the position.
+                                                Example: 1,2,3,4,5
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                        </Flex>
+                        <Flex direction="row" alignItems="center" gap="size-600">
+                            <Slider
+                                isRequired={true}
+                                onChange={setSocialLink}
+                                width="size-3200"
+                                label="Social Link Percentage"
+                                maxValue={100}
+                                value={socialLink}
+                                isFilled
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Social Link Percentage</Heading>
+                                        <Content>
+                                            <Text>
+                                                Maximum 100.
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                            <TextField
+                                width="size-4800"
+                                label="Social Link Positions"
+                                onChange={setSocialPosition}
+                                value={socialPosition}
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Social Link Positions</Heading>
+                                        <Content>
+                                            <Text>
+                                                This field requires to enter a comma separated list of numbers.
+                                                Each number represents the position of the Social links within your email.
+                                                Check the email editor link tracking to get the position.
+                                                Example: 1,2,3,4,5
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                        </Flex>
+                        <Flex direction="row" alignItems="center" gap="size-600">
+                            <Slider
+                                isRequired={true}
+                                onChange={setUnsubLink}
+                                width="size-3200"
+                                label="Unsub Link Percentage"
+                                maxValue={100}
+                                value={unsubLink}
+                                isFilled
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Unsub Link Percentage</Heading>
+                                        <Content>
+                                            <Text>
+                                                Maximum 100.
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                            <TextField
+                                width="size-4800"
+                                label="Unsubscribed Link Positions"
+                                onChange={setUnsubPosition}
+                                value={unsubPosition}
+                                contextualHelp={
+                                    <ContextualHelp variant="info" placement="top start" flex>
+                                        <Heading>Unsubscribed Link Positions</Heading>
+                                        <Content>
+                                            <Text>
+                                                This field requires to enter a comma separated list of numbers.
+                                                Each number represents the position of the Unsubscribed links within your email.
+                                                Check the email editor link tracking to get the position.
+                                                Example: 1,2,3,4,5
+                                            </Text>
+                                        </Content>
+                                    </ContextualHelp>
+                                }
+                            />
+                        </Flex>
+                    </Flex>
+                    <hr style={{ margin: '32px 0', border: 'none', borderTop: '1px solid #eee' }} />
+                </div>
                 <Flex>
                     <ActionButton disabled={false} type="submit">Generate Email Reporting</ActionButton>
                 </Flex>
-                {_isJobLoading && (
-                    <ProgressBar aria-label="Loading.." isIndeterminate={true} />
-                )}
             </Form>
-            <DialogContainer onDismiss={() => setShowConfirmation(null)}>
-                {showConfirmation && (<ConfirmDialogJmeter context={sandboxName} message={result} parentCallback={confirmation} />)}
+            {_isJobLoading && (
+                <ProgressBar aria-label="Loading.." isIndeterminate={true} />
+            )}
+            <DialogContainer onDismiss={() => setShowConfirmation(false)}>
+                {showConfirmation && (
+                    <ConfirmDialogJmeter
+                        result={result}
+                        onClose={() => setShowConfirmation(false)}
+                    />
+                )}
             </DialogContainer>
-            <br></br>
-            {showConfirmation && (<StatusLight variant="positive">Your submission was successful. Check your Developer Tools Console in your browser to see the result</StatusLight>)}
         </>
-    )
+    );
 }
 
-export default JmeterTestwoFolders;
+export default JmeterTestwoFolders

@@ -16,7 +16,7 @@
 
 const fetch = require('node-fetch')
 const { Core } = require('@adobe/aio-sdk')
-const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs } = require('../utils')
+const { errorResponse, stringParameters, checkMissingRequestInputs } = require('../utils')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
@@ -30,23 +30,29 @@ async function main (params) {
     // log parameters, only if params.LOG_LEVEL === 'debug'
     logger.debug(stringParameters(params))
 
-    // check for missing request input parameters and headers
-    const requiredParams = [/* add required params */]
-    const requiredHeaders = ['Authorization']
-    const errorMessage = checkMissingRequestInputs(params, requiredParams, requiredHeaders)
-    if (errorMessage) {
-      // return and log client errors
-      return errorResponse(400, errorMessage, logger)
+    // Get sandbox name from headers
+    const headers = params.__ow_headers || {}
+    const sandboxName = headers.sandboxname
+    const selectedOrg = headers['x-gw-ims-org-id']
+
+    if (!sandboxName || !selectedOrg) {
+      return errorResponse(400, 'Missing required headers: sandboxname or x-gw-ims-org-id', logger)
     }
 
-    // extract the user Bearer token from the Authorization header
-    const token = getBearerToken(params)
+    // Use the user's token directly
+    const userToken = headers.authorization?.replace('Bearer ', '') || 
+                     headers.Authorization?.replace('Bearer ', '')
+    
+    if (!userToken) {
+      return errorResponse(400, 'No authorization token provided', logger)
+    }
 
     const ims_headers = {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${userToken}`,
       'x-api-key': params.apiKey,
       'x-gw-ims-org-id': params.orgId,
-      'x-sandbox-name': params.__ow_headers.sandboxname,
+      'x-sandbox-name': sandboxName,
+      'Content-Type': 'application/json'
     }
 
     // replace this with the api you want to access

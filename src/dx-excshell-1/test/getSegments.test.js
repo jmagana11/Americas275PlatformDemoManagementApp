@@ -23,7 +23,15 @@ beforeEach(() => {
   mockLoggerInstance.error.mockReset()
 })
 
-const fakeParams = { __ow_headers: { authorization: 'Bearer fake' } }
+const fakeParams = {
+  apiKey: 'fake-api-key',
+  orgId: 'fake-org',
+  __ow_headers: {
+    authorization: 'Bearer fake',
+    sandboxname: 'fake-sandbox',
+    'x-gw-ims-org-id': 'fake-org'
+  }
+}
 describe('getSegments', () => {
   test('main should be defined', () => {
     expect(action.main).toBeInstanceOf(Function)
@@ -77,7 +85,7 @@ describe('getSegments', () => {
     expect(response).toEqual({
       error: {
         statusCode: 400,
-        body: { error: 'missing header(s) \'authorization\'' }
+        body: { error: 'Missing required headers: sandboxname or x-gw-ims-org-id' }
       }
     })
   })

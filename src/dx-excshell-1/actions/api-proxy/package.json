@@ -1,0 +1,21 @@
+{
+  "name": "api-proxy",
+  "version": "1.0.0",
+  "description": "API Proxy forwarding action",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.17.0",
+    "axios": "^0.27.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "adobe-io",
+    "api",
+    "proxy",
+    "forwarding"
+  ]
+} 

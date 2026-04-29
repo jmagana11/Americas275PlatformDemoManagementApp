@@ -31,30 +31,76 @@ async function main(params) {
     logger.debug(stringParameters(params))
 
     // check for missing request input parameters and headers
-    const requiredParams = [/* add required params */]
-    const requiredHeaders = ['Authorization']
+    const requiredParams = []
+    const requiredHeaders = ['Authorization', 'x-gw-ims-org-id']
     const errorMessage = checkMissingRequestInputs(params, requiredParams, requiredHeaders)
     if (errorMessage) {
       // return and log client errors
       return errorResponse(400, errorMessage, logger)
     }
 
-    // extract the user Bearer token from the Authorization header
-    const token = getBearerToken(params)
-
-    const ims_headers = {
-      'Authorization': 'Bearer ' + token,
-      'x-api-key': params.apiKey,
-      'x-gw-ims-org-id': params.orgId
+    // Get the bearer token from the Authorization header
+    const bearerToken = getBearerToken(params)
+    if (!bearerToken) {
+      return errorResponse(400, 'Missing or invalid Authorization header', logger)
     }
 
-    // replace this with the api you want to access
-    const apiEndpoint = 'https://platform.adobe.io/data/foundation/sandbox-management/sandboxes/'
+    // Get the IMS organization ID from headers
+    const imsOrgId = params.__ow_headers['x-gw-ims-org-id']
+    if (!imsOrgId) {
+      return errorResponse(400, 'Missing x-gw-ims-org-id header', logger)
+    }
+
+    // Organization-specific environment configurations
+    const environmentList = [
+      {
+        name: 'MA1HOL',
+        tenant: 'adobedemoamericas275',
+        emailDomain: 'ma1.aephandsonlabs.com',
+        imsOrg: params.MA1HOL_IMS_ORG,
+        apiKey: params.MA1HOL_API_KEY
+      },
+      {
+        name: 'POT5HOL',
+        tenant: 'adobeamericaspot5',
+        emailDomain: 'pot5.aephandsonlabs.com',
+        imsOrg: params.POT5HOL_IMS_ORG,
+        apiKey: params.POT5HOL_API_KEY
+      }
+    ]
+    const environments = environmentList.reduce((configs, environment) => {
+      if (environment.imsOrg) {
+        configs[environment.imsOrg] = environment
+      }
+      return configs
+    }, {})
+
+    const environment = environments[imsOrgId]
+    if (!environment) {
+      return errorResponse(400, `Unsupported IMS organization: ${imsOrgId}`, logger)
+    }
+
+    if (!environment.apiKey) {
+      return errorResponse(500, `Missing API key configuration for ${environment.name}`, logger)
+    }
+
+    // Use the bearer token from the frontend for authentication
+    const ims_headers = {
+      'Authorization': 'Bearer ' + bearerToken,
+      'x-api-key': environment.apiKey,
+      'x-gw-ims-org-id': environment.imsOrg
+    }
+
+    // Use the AEP API to get sandboxes
+    const apiEndpoint = 'https://platform.adobe.io/data/foundation/sandbox-management/sandboxes'
 
     // fetch content from external api endpoint
     const res = await fetch(apiEndpoint, {
       method: "GET",
-      headers: ims_headers
+      headers: {
+        ...ims_headers,
+        'Accept': 'application/json'
+      }
     })
     if (!res.ok) {
       throw new Error('request to ' + apiEndpoint + ' failed with status code ' + res.status)

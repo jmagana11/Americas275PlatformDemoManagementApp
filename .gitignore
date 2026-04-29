@@ -10,8 +10,15 @@ dist
 
 # Config
 config.json
-.env*
+.env
+.env.*
+!.env.example
 .aio
+*.workspace.json
+workspace*.json
+*Production.json
+*Stage.json
+*CoralSquirrel*
 
 # Adobe I/O console config
 console.json
@@ -31,6 +38,20 @@ coverage
 # Parcel
 .parcel-cache
 
+# Local nested app experiments
+campaign-trigger-app
+
+# Local scratch scripts and generated samples
+test_*.js
+test_*.txt
+test.jmx
+template.xlsx
+find_templates.js
+delete_session_implementation.js
+header_with_delete_button.js
+session_delete_changes.js
+welcome_*.html
+
 # OSX
 .DS_Store
 
@@ -39,4 +60,3 @@ coverage
 
 # logs folder for aio-run-detached
 logs
-
