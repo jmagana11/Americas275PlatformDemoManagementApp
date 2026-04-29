@@ -23,7 +23,15 @@ beforeEach(() => {
   mockLoggerInstance.error.mockReset()
 })
 
-const fakeParams = { __ow_headers: { authorization: 'Bearer fake' } }
+const fakeParams = {
+  apiKey: 'fake-api-key',
+  orgId: 'fake-org',
+  __ow_headers: {
+    authorization: 'Bearer fake',
+    sandboxname: 'fake-sandbox',
+    segmentids: 'segment-1,segment-2'
+  }
+}
 describe('refreshSegment', () => {
   test('main should be defined', () => {
     expect(action.main).toBeInstanceOf(Function)
@@ -51,7 +59,7 @@ describe('refreshSegment', () => {
     expect(response).toEqual({
       error: {
         statusCode: 500,
-        body: { error: 'server error' }
+        body: { error: 'fake' }
       }
     })
     expect(mockLoggerInstance.error).toHaveBeenCalledWith(fakeError)
@@ -59,14 +67,15 @@ describe('refreshSegment', () => {
   test('if returned service status code is not ok should return a 500 and log the status', async () => {
     const mockFetchResponse = {
       ok: false,
-      status: 404
+      status: 404,
+      text: () => Promise.resolve('fake status')
     }
     fetch.mockResolvedValue(mockFetchResponse)
     const response = await action.main(fakeParams)
     expect(response).toEqual({
       error: {
         statusCode: 500,
-        body: { error: 'server error' }
+        body: { error: 'Adobe API request failed with status 404: fake status' }
       }
     })
     // error message should contain 404
@@ -77,7 +86,7 @@ describe('refreshSegment', () => {
     expect(response).toEqual({
       error: {
         statusCode: 400,
-        body: { error: 'missing header(s) \'authorization\'' }
+        body: { error: 'Missing required headers: segmentids or sandboxname' }
       }
     })
   })

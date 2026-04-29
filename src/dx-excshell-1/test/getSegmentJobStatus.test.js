@@ -23,7 +23,15 @@ beforeEach(() => {
   mockLoggerInstance.error.mockReset()
 })
 
-const fakeParams = { __ow_headers: { authorization: 'Bearer fake' } }
+const fakeParams = {
+  apiKey: 'fake-api-key',
+  orgId: 'fake-org',
+  __ow_headers: {
+    authorization: 'Bearer fake',
+    sandboxname: 'fake-sandbox',
+    jobid: 'fake-job'
+  }
+}
 describe('getSegmentJobStatus', () => {
   test('main should be defined', () => {
     expect(action.main).toBeInstanceOf(Function)
@@ -41,7 +49,7 @@ describe('getSegmentJobStatus', () => {
     const response = await action.main(fakeParams)
     expect(response).toEqual({
       statusCode: 200,
-      body: { content: 'fake' }
+      body: '{"content":"fake"}'
     })
   })
   test('if there is an error should return a 500 and log the error', async () => {

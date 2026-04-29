@@ -23,7 +23,11 @@ beforeEach(() => {
   mockLoggerInstance.error.mockReset()
 })
 
-const fakeParams = { __ow_headers: { authorization: 'Bearer fake' } }
+const fakeParams = {
+  apiKey: 'fake-api-key',
+  formBody: { test: true },
+  __ow_headers: { authorization: 'Bearer fake' }
+}
 describe('jmeterNFemailTracking', () => {
   test('main should be defined', () => {
     expect(action.main).toBeInstanceOf(Function)
@@ -41,7 +45,7 @@ describe('jmeterNFemailTracking', () => {
     const response = await action.main(fakeParams)
     expect(response).toEqual({
       statusCode: 200,
-      body: { content: 'fake' }
+      body: '{"content":"fake"}'
     })
   })
   test('if there is an error should return a 500 and log the error', async () => {
@@ -51,7 +55,7 @@ describe('jmeterNFemailTracking', () => {
     expect(response).toEqual({
       error: {
         statusCode: 500,
-        body: { error: 'server error' }
+        body: { error: fakeError }
       }
     })
     expect(mockLoggerInstance.error).toHaveBeenCalledWith(fakeError)
@@ -66,7 +70,7 @@ describe('jmeterNFemailTracking', () => {
     expect(response).toEqual({
       error: {
         statusCode: 500,
-        body: { error: 'server error' }
+        body: { error: expect.objectContaining({ message: expect.stringContaining('404') }) }
       }
     })
     // error message should contain 404

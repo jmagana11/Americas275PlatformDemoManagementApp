@@ -4,6 +4,8 @@
 
 /* This file exposes some common utilities for your actions */
 
+const { redactObject } = require('./shared/redaction')
+
 /**
  *
  * Returns a log ready string of the action input parameters.
@@ -15,12 +17,7 @@
  *
  */
 function stringParameters (params) {
-  // hide authorization token without overriding params
-  let headers = params.__ow_headers || {}
-  if (headers.authorization) {
-    headers = { ...headers, authorization: '<hidden>' }
-  }
-  return JSON.stringify({ ...params, __ow_headers: headers })
+  return JSON.stringify(redactObject(params))
 }
 
 /**

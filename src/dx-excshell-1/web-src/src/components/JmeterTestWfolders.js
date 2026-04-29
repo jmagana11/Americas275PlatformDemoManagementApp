@@ -14,10 +14,11 @@ import {
     Flex,
     StatusLight,
     ContextualHelp,
-    Switch
-
+    Switch,
+    ListBox,
+    Item,
+    Picker
 } from '@adobe/react-spectrum';
-import SandboxPicker from './SandboxPicker'
 import ConfirmDialogJmeter from './ConfirmDialogJmeter'
 import allActions from '../config.json'
 
@@ -47,9 +48,134 @@ function JmeterTestWfolders(props) {
     const [globalSetErrors, setGlobalSetErrors] = useState("yellow");
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [_isJobLoading, set_IsJobLoading] = useState(false);
-    const [manualMode, setManualMode] = useState(false);
-    const [logFileName, setLogFileName] = useState("");
+    const [logFileName, setLogFileName] = useState("abbey_cjmadobe");
 
+    // Inbox Config options
+    const inboxConfigOptions = [
+        "abbey_cjmadobe",
+        "acc_americas90",
+        "acc_ma1",
+        "acc_pot5",
+        "ajosand",
+        "demo_cjmadobe",
+        "jfiur_cjmadobe",
+        "jousa_svpoc_abbey_beta",
+        "ma1_demo1",
+        "ma1_demo10",
+        "ma1_demo11",
+        "ma1_demo12",
+        "ma1_demo13",
+        "ma1_demo14",
+        "ma1_demo15",
+        "ma1_demo16",
+        "ma1_demo17",
+        "ma1_demo18",
+        "ma1_demo19",
+        "ma1_demo2",
+        "ma1_demo20",
+        "ma1_demo3",
+        "ma1_demo4",
+        "ma1_demo5",
+        "ma1_demo6",
+        "ma1_demo7",
+        "ma1_demo8",
+        "ma1_esphol1",
+        "ma1_hol1",
+        "ma1_hol10",
+        "ma1_hol11",
+        "ma1_hol12",
+        "ma1_hol13",
+        "ma1_hol14",
+        "ma1_hol15",
+        "ma1_hol16",
+        "ma1_hol17",
+        "ma1_hol18",
+        "ma1_hol19",
+        "ma1_hol2",
+        "ma1_hol20",
+        "ma1_hol3",
+        "ma1_hol4",
+        "ma1_hol5",
+        "ma1_hol6",
+        "ma1_hol7",
+        "ma1_hol8",
+        "ma1_poc1",
+        "ma1_poc10",
+        "ma1_poc11",
+        "ma1_poc12",
+        "ma1_poc13",
+        "ma1_poc14",
+        "ma1_poc15",
+        "ma1_poc16",
+        "ma1_poc17",
+        "ma1_poc18",
+        "ma1_poc19",
+        "ma1_poc2",
+        "ma1_poc20",
+        "ma1_poc3",
+        "ma1_poc4",
+        "ma1_poc5",
+        "ma1_poc6",
+        "ma1_poc7",
+        "ma1_poc8",
+        "pot5/pot5_demo1",
+        "pot5/pot5_demo10",
+        "pot5/pot5_demo11",
+        "pot5/pot5_demo12",
+        "pot5/pot5_demo13",
+        "pot5/pot5_demo14",
+        "pot5/pot5_demo15",
+        "pot5/pot5_demo16",
+        "pot5/pot5_demo17",
+        "pot5/pot5_demo18",
+        "pot5/pot5_demo19",
+        "pot5/pot5_demo2",
+        "pot5/pot5_demo20",
+        "pot5/pot5_demo3",
+        "pot5/pot5_demo4",
+        "pot5/pot5_demo5",
+        "pot5/pot5_demo6",
+        "pot5/pot5_demo7",
+        "pot5/pot5_demo8",
+        "pot5/pot5_hol1",
+        "pot5/pot5_hol10",
+        "pot5/pot5_hol11",
+        "pot5/pot5_hol12",
+        "pot5/pot5_hol13",
+        "pot5/pot5_hol14",
+        "pot5/pot5_hol15",
+        "pot5/pot5_hol16",
+        "pot5/pot5_hol17",
+        "pot5/pot5_hol18",
+        "pot5/pot5_hol19",
+        "pot5/pot5_hol2",
+        "pot5/pot5_hol20",
+        "pot5/pot5_hol3",
+        "pot5/pot5_hol4",
+        "pot5/pot5_hol5",
+        "pot5/pot5_hol6",
+        "pot5/pot5_hol7",
+        "pot5/pot5_hol8",
+        "pot5/pot5_poc1",
+        "pot5/pot5_poc10",
+        "pot5/pot5_poc11",
+        "pot5/pot5_poc12",
+        "pot5/pot5_poc13",
+        "pot5/pot5_poc14",
+        "pot5/pot5_poc15",
+        "pot5/pot5_poc16",
+        "pot5/pot5_poc17",
+        "pot5/pot5_poc18",
+        "pot5/pot5_poc19",
+        "pot5/pot5_poc2",
+        "pot5/pot5_poc20",
+        "pot5/pot5_poc3",
+        "pot5/pot5_poc4",
+        "pot5/pot5_poc5",
+        "pot5/pot5_poc6",
+        "pot5/pot5_poc7",
+        "pot5/pot5_poc8"
+    ];
 
     //Start setting the header object
     const actionHeaders = {
@@ -75,7 +201,7 @@ function JmeterTestWfolders(props) {
     const payload = {
         "formBody": {
             "jmeter": {
-                "file_ref": "",
+                "file_ref": "abbey_cjmadobe",
                 "total_opens": 0,
                 "mobile_experience_pct": 0,
                 "folders": {
@@ -142,7 +268,7 @@ function JmeterTestWfolders(props) {
             setFolderError('yellow')
         }
 
-        if (sandboxName.length > 0 &&
+        if (logFileName.length > 0 &&
             totalOpens > 0 &&
             mobExpPercentage > 0 &&
             numberTrackingLinks > 0) {
@@ -152,7 +278,7 @@ function JmeterTestWfolders(props) {
             setGlobalSetErrors("yellow");
         }
 
-    }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink, rows, sandboxName, totalOpens, mobExpPercentage, numberTrackingLinks]);
+    }, [mirrorLink, navLink, offerLink, productLink, socialLink, unsubLink, rows, logFileName, totalOpens, mobExpPercentage, numberTrackingLinks]);
 
     const resetForm = () => {
         setRows([{ textValue: '', sliders: [0, 0, 0] }]);
@@ -174,12 +300,8 @@ function JmeterTestWfolders(props) {
         setTotalOpens(0);
         setMobExpPercentage(0);
         setNumberTrackingLinks(0);
+        setLogFileName("abbey_cjmadobe");
     };
-
-    //This handles our custom sandbox picker
-    function handleSandboxSelection(selection) {
-        setSandboxName(selection);
-    }
 
     const handleAddRow = () => {
         if (rows.length < 4) {
@@ -209,28 +331,66 @@ function JmeterTestWfolders(props) {
         fetchConfig['body'] = data;
         fetchConfig['method'] = 'POST';
 
-        try {
-            fetch(allActions.jmeterNFemailTracking, fetchConfig)
-                .then((response) => response.json())
-                .then((data) => {
-                    if (data.pid) {
-                        setResult(JSON.stringify(data));
-                        set_IsJobLoading(false);
-                        setShowConfirmation(true);
-                        resetForm();
-                        setGlobalSetErrors('yellow');
-                        console.log('Form submitted successfully:', data);
-                    } else {
-                        set_IsJobLoading(false);
-                        setResult(data);
-                        setShowConfirmation(true);
+        console.log('Calling jmeter action with config:', fetchConfig);
+        
+        fetch(allActions.jmeterNFemailTracking, fetchConfig)
+            .then((response) => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    // Handle HTTP errors
+                    let errorMessage = `HTTP Error ${response.status}: ${response.statusText}`;
+                    
+                    if (response.status === 403) {
+                        errorMessage = 'Authorization failed (403). Please check your jmeterKey configuration.';
+                    } else if (response.status === 500) {
+                        errorMessage = 'Server error (500). Please try again later.';
+                    } else if (response.status === 400) {
+                        errorMessage = 'Bad request (400). Please check your input data.';
                     }
-                });
-        } catch (e) {
-            set_IsJobLoading(false);
-            setResult(e);
-            setShowConfirmation(true);
-        }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                return response.json();
+            })
+            .then((data) => {
+                console.log('Response data:', data);
+                
+                if (data.pid) {
+                    // Success case
+                    setResult(JSON.stringify(data, null, 2));
+                    set_IsJobLoading(false);
+                    setShowConfirmation(true);
+                    resetForm();
+                    setGlobalSetErrors('yellow');
+                    console.log('Form submitted successfully:', data);
+                } else {
+                    // Response without pid - treat as error
+                    const errorData = {
+                        error: true,
+                        message: 'Response received but no process ID found',
+                        details: data
+                    };
+                    setResult(JSON.stringify(errorData, null, 2));
+                    set_IsJobLoading(false);
+                    setShowConfirmation(true);
+                }
+            })
+            .catch((error) => {
+                console.error('Error calling jmeter action:', error);
+                
+                const errorData = {
+                    error: true,
+                    message: error.message || 'An unexpected error occurred',
+                    details: error.toString()
+                };
+                
+                setResult(JSON.stringify(errorData, null, 2));
+                set_IsJobLoading(false);
+                setShowConfirmation(true);
+            });
     }
 
     const handleSubmit = (event) => {
@@ -270,8 +430,8 @@ function JmeterTestWfolders(props) {
             }
 
             payload.formBody.jmeter.links = links;
-            payload.formBody.jmeter.file_ref = manualMode ? logFileName : `ma1_svpoc_${cleanSandboxName()}_testv9_beta0`;
-            payload.formBody.options.sandbox_name = sandboxName;
+            payload.formBody.jmeter.file_ref = logFileName;
+            payload.formBody.options.sandbox_name = sandboxName || "";
             payload.formBody.jmeter.total_opens = totalOpens;
             payload.formBody.jmeter.mobile_experience_pct = mobExpPercentage;
 
@@ -322,37 +482,20 @@ function JmeterTestWfolders(props) {
                 Global Settings:
             </Heading>
             <StatusLight variant={globalSetErrors}>You must provide all fields in this section.</StatusLight><br></br>
-            <Flex direction="row">
-                    <Switch
-                        onChange={setManualMode}
-                        value={manualMode}>Would you like to enable manual mode?
-                    </Switch>
-                    <ContextualHelp variant="info">
-                        <Heading>Set Manual Mode</Heading>
-                        <Content>
-                            <Text>
-                                Enable the switch if you do not belong to the POC team, or your sandbox is outside of the Adobe-Demo-Americas-275 org.
-                            </Text>
-                        </Content>
-                    </ContextualHelp>
-                </Flex>
-                <br></br>
-                {manualMode ? 
-                                <Flex direction="row" gap="size-100">
-                                    <TextField width="size-6000"  isRequired={true} label="Sandbox Name:" onChange={setSandboxName} value={sandboxName} />
-                                    <TextField width="size-6000"  isRequired={true} label="Log File Name:" onChange={setLogFileName} value={logFileName}/>
-                                </Flex>
-                            :
-                                <Flex direction="row">
-                                    <SandboxPicker
-                                        contextualHelp={
-                                            {
-                                                "heading": "Sandbox Name",
-                                                "body": "This will determine which inbox should we look for the emails."
-                                            }}
-                                        ims={props.ims}
-                                        parentCallback={handleSandboxSelection} />
-                                </Flex>}
+            <Flex direction="row" gap="size-100">
+                <TextField width="size-6000" label="Sandbox Name:" onChange={setSandboxName} value={sandboxName} />
+                <Picker
+                    width="size-6000"
+                    label="Inbox Config:"
+                    selectedKey={logFileName}
+                    onSelectionChange={setLogFileName}
+                    isRequired={true}
+                >
+                    {inboxConfigOptions.map((option) => (
+                        <Item key={option}>{option}</Item>
+                    ))}
+                </Picker>
+            </Flex>
             <div><br></br></div>
             <div><br></br></div>
             <Slider
@@ -693,8 +836,13 @@ function JmeterTestWfolders(props) {
                     <ProgressBar aria-label="Loading.." isIndeterminate={true} />
                 )}
             </Form>
-            <DialogContainer onDismiss={() => setShowConfirmation(null)}>
-                {showConfirmation && (<ConfirmDialogJmeter context={sandboxName} message={result} parentCallback={confirmation} />)}
+            <DialogContainer onDismiss={() => setShowConfirmation(false)}>
+                {showConfirmation && (
+                    <ConfirmDialogJmeter
+                        result={result}
+                        onClose={() => setShowConfirmation(false)}
+                    />
+                )}
             </DialogContainer>
         </>
     );

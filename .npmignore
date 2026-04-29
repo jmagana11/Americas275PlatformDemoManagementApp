@@ -1,0 +1,39 @@
+# Runtime/build output
+dist
+build
+.parcel-cache
+.manifest-dist.yml
+
+# Local credentials and workspace exports
+.env
+.env.*
+!.env.example
+.aio
+.aws.tmp.creds.json
+*.workspace.json
+workspace*.json
+*Production.json
+*Stage.json
+*CoralSquirrel*
+
+# Development artifacts
+node_modules
+coverage
+logs
+junit.xml
+.DS_Store
+.vscode
+.idea
+
+# Local experiments and scratch files
+campaign-trigger-app
+tools/legacy
+test_*.js
+test_*.txt
+test.jmx
+template.xlsx
+find_templates.js
+delete_session_implementation.js
+header_with_delete_button.js
+session_delete_changes.js
+welcome_*.html

@@ -13,84 +13,115 @@
  *   - Make sure to validate these changes against your security requirements before deploying the action
  */
 
-
 const fetch = require('node-fetch')
 const { Core } = require('@adobe/aio-sdk')
-const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs } = require('../utils')
+const { errorResponse, stringParameters, checkMissingRequestInputs } = require('../utils')
 
 // main function that will be executed by Adobe I/O Runtime
-async function main (params) {
-  // create a Logger
-  const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
+async function main(params) {
+    const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
 
-  try {
-    // 'info' is the default level if not set
-    logger.info('Calling the main action')
+    try {
+        logger.info('Calling the main action')
+        logger.debug('Full params:', stringParameters(params))
 
-    // log parameters, only if params.LOG_LEVEL === 'debug'
-    logger.debug(stringParameters(params))
+        // Log all headers received
+        const headers = params.__ow_headers || {}
+        logger.info('Headers received:', headers)
 
-    // check for missing request input parameters and headers
-    const requiredParams = [/* add required params */]
-    const requiredHeaders = ['Authorization']
-    const errorMessage = checkMissingRequestInputs(params, requiredParams, requiredHeaders)
-    if (errorMessage) {
-      // return and log client errors
-      return errorResponse(400, errorMessage, logger)
+        // Get segment IDs and sandbox name from headers or body
+        let segmentIds, sandboxName
+        
+        if (params.__ow_method === 'POST' && params.body) {
+            // Parse body for POST requests
+            const body = typeof params.body === 'string' ? JSON.parse(params.body) : params.body
+            segmentIds = body.segmentids || headers.segmentids
+            sandboxName = body.sandboxname || headers.sandboxname
+        } else {
+            // Use headers for GET requests
+            segmentIds = headers.segmentids
+            sandboxName = headers.sandboxname
+        }
+
+        logger.info('Raw segment IDs:', segmentIds)
+        
+        if (!segmentIds || !sandboxName) {
+            return errorResponse(400, 'Missing required headers: segmentids or sandboxname', logger)
+        }
+
+        // Process segment IDs
+        const processedSegmentIds = segmentIds.split(',').map(id => id.trim())
+        logger.info('Processed segment IDs:', processedSegmentIds)
+
+        if (!processedSegmentIds.length) {
+            throw new Error('No segment IDs provided')
+        }
+
+        logger.info('Processing refresh for segments:', processedSegmentIds.join(', '))
+
+        // Use the user's token directly
+        const userToken = headers.authorization?.replace('Bearer ', '') || 
+                         headers.Authorization?.replace('Bearer ', '')
+        
+        if (!userToken) {
+            return errorResponse(400, 'No authorization token provided', logger)
+        }
+        
+        // Prepare request to Adobe API
+        const apiUrl = 'https://platform.adobe.io/data/core/ups/segment/jobs'
+        
+        // Format request body according to Adobe API specifications for batch evaluation
+        const requestBody = {
+            name: `Batch Segment Refresh Job - ${new Date().toISOString()}`,
+            segments: processedSegmentIds.map(id => ({
+                segmentId: id
+            })),
+            operation: "refresh",
+            evaluationInfo: {
+                batch: {
+                    enabled: true
+                }
+            }
+        }
+
+        // Set up headers for the Adobe API request
+        const apiHeaders = {
+            'Authorization': `Bearer ${userToken}`,
+            'x-api-key': params.apiKey,
+            'x-gw-ims-org-id': params.orgId,
+            'x-sandbox-name': sandboxName,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+        
+        logger.info('Request body:', JSON.stringify(requestBody, null, 2))
+        logger.info('Request headers:', apiHeaders)
+
+        // Make the request to Adobe API
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: apiHeaders,
+            body: JSON.stringify(requestBody)
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            logger.error('Adobe API error:', errorText)
+            throw new Error(`Adobe API request failed with status ${response.status}: ${errorText}`)
+        }
+
+        const responseData = await response.json()
+        logger.info('Adobe API response:', responseData)
+
+        return {
+            statusCode: 200,
+            body: responseData
+        }
+
+    } catch (error) {
+        logger.error(error)
+        return errorResponse(500, error.message)
     }
-
-    // extract the user Bearer token from the Authorization header
-    const token = getBearerToken(params)
-
-    const ims_headers = {
-      'Authorization': `Bearer ${token}`,
-      'x-api-key': params.apiKey,
-      'x-gw-ims-org-id': params.orgId,
-      'x-sandbox-name': params.__ow_headers.sandboxname
-    }
-
-    // replace this with the api you want to access
-    const apiEndpoint = 'https://platform.adobe.io/data/core/ups/segment/jobs'
-
-    const options = {
-      method: "POST",
-      headers: ims_headers,
-      body:JSON.stringify([{
-        "segmentId": params.__ow_headers.segmentid
-      }])
-    }
-
-    
-
-    logger.info("  RAW Options: " + JSON.stringify(options));
-    // fetch content from external api endpoint
-    const res = await fetch(apiEndpoint,options)
-    if (!res.ok) {
-      throw new Error('request to ' + apiEndpoint + ' failed with status code ' + res.status)
-    }
-
-    logger.info("  RAW res: " + JSON.stringify(res))
-    const content = await res.json()
-
-    
-    const response = {
-      statusCode: 200,
-      body: JSON.stringify(content),
-      headers: {
-        'Content-Type':'application/json'
-      }
-    }
-
-    // log the response status code
-    logger.info(`${response.statusCode}: successful request`)
-    logger.info(`This is the full response ${JSON.stringify(response)}`)
-    return response
-  } catch (error) {
-    // log any server errors
-    logger.error(error)
-    // return with 500
-    return errorResponse(500, 'server error', logger)
-  }
 }
 
 exports.main = main

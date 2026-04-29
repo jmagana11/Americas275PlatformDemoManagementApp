@@ -8,42 +8,60 @@ runtimeManifest:
   packages:
     dx-excshell-1:
       license: Apache-2.0
+      inputs:
+        LOG_LEVEL: $LOG_LEVEL
+        apiKey: $AEP_API_KEY
+        clientSecret: $AEP_CLIENT_SECRET
+        techAccId: $AEP_TECH_ACCOUNT_ID
+        techAccEm: $AEP_TECH_ACCOUNT_EMAIL
+        orgId: $AEP_ORG_ID
+        AZURE_BLOB_URL: $AZURE_BLOB_URL
+        AZURE_SAS_TOKEN: $AZURE_SAS_TOKEN
+        AZURE_OPENAI_ENDPOINT: $AZURE_OPENAI_ENDPOINT
+        AZURE_OPENAI_KEY: $AZURE_OPENAI_KEY
+        AZURE_OPENAI_IMAGE_ENDPOINT: $AZURE_OPENAI_IMAGE_ENDPOINT
+        AZURE_OPENAI_IMAGE_KEY: $AZURE_OPENAI_IMAGE_KEY
+        AZURE_VISION_ENDPOINT: $AZURE_VISION_ENDPOINT
+        AZURE_VISION_KEY: $AZURE_VISION_KEY
+        MA1HOL_API_KEY: $MA1HOL_API_KEY
+        MA1HOL_CLIENT_SECRET: $MA1HOL_CLIENT_SECRET
+        MA1HOL_IMS_ORG: $MA1HOL_IMS_ORG
+        MA1HOL_TENANT: $MA1HOL_TENANT
+        MA1HOL_EMAIL_DOMAIN: $MA1HOL_EMAIL_DOMAIN
+        MA1HOL_MS_CLIENT_ID: $MA1HOL_MS_CLIENT_ID
+        MA1HOL_MS_CLIENT_SECRET: $MA1HOL_MS_CLIENT_SECRET
+        MA1HOL_MS_TENANT_ID: $MA1HOL_MS_TENANT_ID
+        MA1HOL_MS_APP_ROLE_ID: $MA1HOL_MS_APP_ROLE_ID
+        MA1HOL_MS_APP_RESOURCE_ID: $MA1HOL_MS_APP_RESOURCE_ID
+        POT5HOL_API_KEY: $POT5HOL_API_KEY
+        POT5HOL_CLIENT_SECRET: $POT5HOL_CLIENT_SECRET
+        POT5HOL_IMS_ORG: $POT5HOL_IMS_ORG
+        POT5HOL_TENANT: $POT5HOL_TENANT
+        POT5HOL_EMAIL_DOMAIN: $POT5HOL_EMAIL_DOMAIN
+        POT5HOL_MS_CLIENT_ID: $POT5HOL_MS_CLIENT_ID
+        POT5HOL_MS_CLIENT_SECRET: $POT5HOL_MS_CLIENT_SECRET
+        POT5HOL_MS_TENANT_ID: $POT5HOL_MS_TENANT_ID
+        POT5HOL_MS_APP_ROLE_ID: $POT5HOL_MS_APP_ROLE_ID
+        POT5HOL_MS_APP_RESOURCE_ID: $POT5HOL_MS_APP_RESOURCE_ID
+        POT5HOL_CONTENT_API_KEY: $POT5HOL_CONTENT_API_KEY
+        POT5HOL_CONTENT_CLIENT_SECRET: $POT5HOL_CONTENT_CLIENT_SECRET
+        CAMPAIGN_TRIGGER_CLIENT_ID: $CAMPAIGN_TRIGGER_CLIENT_ID
+        CAMPAIGN_TRIGGER_CLIENT_SECRET: $CAMPAIGN_TRIGGER_CLIENT_SECRET
+        CAMPAIGN_TRIGGER_SCOPE: $CAMPAIGN_TRIGGER_SCOPE
+        CAMPAIGN_TRIGGER_IMS_ORG: $CAMPAIGN_TRIGGER_IMS_ORG
+        CAMPAIGN_TRIGGER_SANDBOX: $CAMPAIGN_TRIGGER_SANDBOX
       actions:
         getsandboxes:
           function: actions/getsandboxes/index.js
           web: 'yes'
           runtime: nodejs:16
-          inputs:
-            LOG_LEVEL: debug
-            apiKey: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_client__id
-            clientSecret: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_client__secret
-            techAccId: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_technical__account__id
-            techAccEm: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_technical__account__email
-            orgId: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_ims__org__id
           annotations:
-            require-adobe-auth: true
+            require-adobe-auth: false
             final: true
         getSegments:
           function: actions/getSegments/index.js
           web: 'yes'
           runtime: nodejs:16
-          inputs:
-            LOG_LEVEL: debug
-            apiKey: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_client__id
-            clientSecret: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_client__secret
-            techAccId: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_technical__account__id
-            techAccEm: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_technical__account__email
-            orgId: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_ims__org__id
           annotations:
             require-adobe-auth: true
             final: true
@@ -51,18 +69,6 @@ runtimeManifest:
           function: actions/refreshSegment/index.js
           web: 'yes'
           runtime: nodejs:16
-          inputs:
-            LOG_LEVEL: debug
-            apiKey: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_client__id
-            clientSecret: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_client__secret
-            techAccId: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_technical__account__id
-            techAccEm: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_technical__account__email
-            orgId: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_ims__org__id
           annotations:
             require-adobe-auth: true
             final: true
@@ -70,18 +76,6 @@ runtimeManifest:
           function: actions/getSegmentJobStatus/index.js
           web: 'yes'
           runtime: nodejs:16
-          inputs:
-            LOG_LEVEL: debug
-            apiKey: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_client__id
-            clientSecret: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_client__secret
-            techAccId: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_technical__account__id
-            techAccEm: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_technical__account__email
-            orgId: >-
-              $AIO_ims_contexts_Americas275DemoManagementApp__J__1676065361794_ims__org__id
           annotations:
             require-adobe-auth: true
             final: true
@@ -90,8 +84,247 @@ runtimeManifest:
           web: 'yes'
           runtime: nodejs:16
           inputs:
-            LOG_LEVEL: debug
-            apiKey: $jmeterKey
+            apiKey: $JMETER_API_KEY
+          annotations:
+            require-adobe-auth: true
+            final: true
+        getSchemas:
+          function: actions/getSchemas/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        getDatasets:
+          function: actions/getDatasets/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        getSchemaDetails:
+          function: actions/getSchemaDetails/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        downloadSchemaDetails:
+          function: actions/downloadSchemaDetails/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        createDataset:
+          function: actions/createDataset/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        createStreamingConnector:
+          function: actions/createStreamingConnector/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        createStreamingDataflow:
+          function: actions/createStreamingDataflow/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        deleteStreamingConnector:
+          function: actions/deleteStreamingConnector/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        getStreamingConnectors:
+          function: actions/getStreamingConnectors/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        generateProfiles:
+          function: actions/generateProfiles/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        injectProfiles:
+          function: actions/injectProfiles/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        getProfileCount:
+          function: actions/getProfileCount/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        getSampleData:
+          function: actions/getSampleData/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        debugProfileIngestion:
+          function: actions/debugProfileIngestion/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: true
+            final: true
+        adobe-auth:
+          function: actions/adobe-auth/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        api-monitor:
+          function: actions/api-monitor/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        api-proxy:
+          function: actions/api-proxy/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        data-api:
+          function: actions/data-api/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        data-api-logs:
+          function: actions/data-api-logs/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        generic:
+          function: actions/generic/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        image-analysis:
+          function: actions/image-analysis/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        image-generation:
+          function: actions/image-generation/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        microsoft-auth:
+          function: actions/microsoft-auth/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        prompt-generation:
+          function: actions/prompt-generation/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        upload-file:
+          function: actions/upload-file/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        url-shortener:
+          function: actions/url-shortener/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        webhook-receiver:
+          function: actions/webhook-receiver/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        session-manager:
+          function: actions/session-manager/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        ims-product-config:
+          function: actions/ims-product-config/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        content-templates:
+          function: actions/content-templates/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        get-org-sandboxes:
+          function: actions/get-org-sandboxes/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        campaign-trigger:
+          function: actions/campaign-trigger/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+            web-cors: true
+            web-cors-origin: '*'
+        check-file-exists:
+          function: actions/check-file-exists/index.js
+          web: 'yes'
+          runtime: nodejs:16
+          annotations:
+            require-adobe-auth: false
+            final: true
+        offer-simulator:
+          function: actions/offer-simulator/index.js
+          web: 'yes'
+          runtime: nodejs:16
           annotations:
             require-adobe-auth: true
             final: true
