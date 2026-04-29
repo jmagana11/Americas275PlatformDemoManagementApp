@@ -76,9 +76,18 @@ Important credential/config groups:
 - Azure Blob Storage: `AZURE_BLOB_URL`, `AZURE_SAS_TOKEN`
 - Azure OpenAI and Vision: `AZURE_OPENAI_*`, `AZURE_VISION_*`
 - Organization-specific configuration: `MA1HOL_*`, `POT5HOL_*`
-- Campaign trigger configuration: `CAMPAIGN_TRIGGER_*`
+- Campaign trigger configuration: `MA1HOL_*` Adobe credentials plus `CAMPAIGN_TRIGGER_SCOPE` and `CAMPAIGN_TRIGGER_SANDBOX`
+- Shared Microsoft Graph app role: `MS_APP_ROLE_ID`
 
 Runtime package inputs are injected into action `params` by App Builder. Logging and monitor actions must redact or filter Runtime inputs before storing or rendering captured requests.
+
+Shared backend config resolution lives in:
+
+```text
+src/dx-excshell-1/actions/shared/config.js
+```
+
+The resolver prefers canonical env inputs and keeps older duplicate names as temporary aliases. App-owned duplicate credential env sources removed from `ext.config.yaml` include Campaign Trigger client/org credential inputs and per-org Microsoft app role ids.
 
 ## Local Development
 
@@ -176,10 +185,11 @@ Keep follow-up work in small PRs:
 - centralize Adobe Platform auth/header helpers
 - centralize Azure Blob client creation
 - centralize JSON/error response formatting
-- centralize OpenAI/Azure OpenAI request handling
+- continue migrating action clusters to the shared Runtime config resolver
+- centralize OpenAI/Azure OpenAI request handling beyond `prompt-generation`
 - centralize frontend action invocation and route/sidebar metadata
 - review hardening for public actions
-- plan a separate Runtime upgrade from `nodejs:16` to `nodejs:20`
+- plan a separate Runtime upgrade from `nodejs:16` to the newest supported Adobe I/O Runtime LTS kind, preferably `nodejs:24`
 
 ## Operational Notes
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Heading,
@@ -49,6 +49,9 @@ import Document from '@spectrum-icons/workflow/Document'
 import { getActionUrlFromRuntime } from '../utils/actionUrls'
 
 const ContentTemplateMigrator = ({ runtime, ims }) => {
+  const isMountedRef = useRef(true)
+  const notificationTimeoutRef = useRef(null)
+
   // Environment and sandbox states
   const [selectedSourceOrg, setSelectedSourceOrg] = useState('')
   const [selectedSourceSandbox, setSelectedSourceSandbox] = useState('')
@@ -79,6 +82,18 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
   // Migration results
   const [migrationResults, setMigrationResults] = useState([])
   const [migrationStatus, setMigrationStatus] = useState('idle') // 'idle', 'in-progress', 'completed', 'error'
+
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current)
+        notificationTimeoutRef.current = null
+      }
+    }
+  }, [])
   
   // Fetch sandboxes when org changes
   useEffect(() => {
@@ -117,8 +132,25 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
 
   // Utility functions
   const showNotification = (type, message) => {
+    if (!isMountedRef.current) return
+
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current)
+    }
+
     setNotification({ type, message })
-    setTimeout(() => setNotification(null), 5000)
+    notificationTimeoutRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setNotification(null)
+      }
+      notificationTimeoutRef.current = null
+    }, 5000)
+  }
+
+  const setStateIfMounted = (setter, value) => {
+    if (isMountedRef.current) {
+      setter(value)
+    }
   }
 
   const fetchSandboxes = async (org, environment, setSandboxes, setIsLoading) => {
@@ -164,19 +196,19 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
           description: sandbox.description || ''
         }))
         console.log('Processed sandbox list:', sandboxList)
-        setSandboxes(sandboxList)
+        setStateIfMounted(setSandboxes, sandboxList)
         showNotification('success', `Found ${sandboxList.length} sandboxes for ${org}`)
       } else {
         console.log('No sandbox data found in response')
         showNotification('error', 'No sandboxes found for this organization')
-        setSandboxes([])
+        setStateIfMounted(setSandboxes, [])
       }
     } catch (error) {
       console.error('Error fetching sandboxes:', error)
       showNotification('error', 'Failed to fetch sandboxes')
-      setSandboxes([])
+      setStateIfMounted(setSandboxes, [])
     } finally {
-      setIsLoading(false)
+      setStateIfMounted(setIsLoading, false)
     }
   }
 
@@ -202,9 +234,10 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
       })
 
       const result = await response.json()
+      if (!isMountedRef.current) return
       
       if (result.success) {
-        setTemplates(result.templates || [])
+        setStateIfMounted(setTemplates, result.templates || [])
         showNotification('success', `Found ${result.templates?.length || 0} templates`)
       } else {
         showNotification('error', result.error || 'Failed to fetch templates')
@@ -213,7 +246,7 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
       console.error('Error fetching templates:', error)
       showNotification('error', 'Failed to fetch templates')
     } finally {
-      setIsLoadingTemplates(false)
+      setStateIfMounted(setIsLoadingTemplates, false)
     }
   }
 
@@ -266,6 +299,7 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
         })
 
         const result = await response.json()
+        if (!isMountedRef.current) return
         
         if (result.success) {
           results.push({
@@ -295,8 +329,8 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
       }
     }
 
-    setMigrationResults(results)
-    setMigrationStatus('completed')
+    setStateIfMounted(setMigrationResults, results)
+    setStateIfMounted(setMigrationStatus, 'completed')
     
     const successfulCount = results.filter(r => r.success).length
     const failedCount = results.filter(r => !r.success).length
@@ -307,7 +341,7 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
       showNotification('error', `Migrated ${successfulCount} templates, ${failedCount} failed`)
     }
     
-    setIsMigrating(false)
+    setStateIfMounted(setIsMigrating, false)
   }
 
   const handleTemplateSelection = async (templateId, isSelected) => {
@@ -335,9 +369,10 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
           })
 
           const result = await response.json()
+          if (!isMountedRef.current) return
           
           if (result.success) {
-            setTemplateDataCache(prev => ({
+            setStateIfMounted(setTemplateDataCache, prev => ({
               ...prev,
               [templateId]: result.template
             }))
@@ -387,9 +422,10 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
           })
 
           const result = await response.json()
+          if (!isMountedRef.current) return
           
           if (result.success) {
-            setTemplateDataCache(prev => ({
+            setStateIfMounted(setTemplateDataCache, prev => ({
               ...prev,
               [templateId]: result.template
             }))
@@ -441,25 +477,26 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
 
       const result = await response.json()
       console.log('Template details response:', result)
+      if (!isMountedRef.current) return
       
       if (result.success) {
         console.log('Template data:', result.template)
         // Cache the full template data for later use in migration
-        setTemplateDataCache(prev => ({
+        setStateIfMounted(setTemplateDataCache, prev => ({
           ...prev,
           [template.id]: result.template
         }))
-        setSelectedTemplateForPreview(result.template)
+        setStateIfMounted(setSelectedTemplateForPreview, result.template)
       } else {
         showNotification('error', result.error || 'Failed to fetch template details')
-        setIsPreviewOpen(false)
+        setStateIfMounted(setIsPreviewOpen, false)
       }
     } catch (error) {
       console.error('Error fetching template details:', error)
       showNotification('error', 'Failed to fetch template details')
-      setIsPreviewOpen(false)
+      setStateIfMounted(setIsPreviewOpen, false)
     } finally {
-      setIsLoadingTemplateDetails(false)
+      setStateIfMounted(setIsLoadingTemplateDetails, false)
     }
   }
 

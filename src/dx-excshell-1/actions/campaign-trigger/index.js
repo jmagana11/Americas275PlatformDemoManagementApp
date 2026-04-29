@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 const { Core } = require('@adobe/aio-sdk');
-const { errorResponse, stringParameters, checkMissingRequestInputs } = require('../utils');
+const { stringParameters } = require('../utils');
+const { ConfigError, getCampaignTriggerConfig } = require('../shared/config');
 
 // main function that will be executed by the runtime
 async function main(params) {
@@ -55,19 +56,21 @@ async function main(params) {
             };
         }
 
-        const clientId = params.CAMPAIGN_TRIGGER_CLIENT_ID || process.env.CAMPAIGN_TRIGGER_CLIENT_ID;
-        const clientSecret = params.CAMPAIGN_TRIGGER_CLIENT_SECRET || process.env.CAMPAIGN_TRIGGER_CLIENT_SECRET;
-        const scope = params.CAMPAIGN_TRIGGER_SCOPE || process.env.CAMPAIGN_TRIGGER_SCOPE;
-        const imsOrg = params.CAMPAIGN_TRIGGER_IMS_ORG || process.env.CAMPAIGN_TRIGGER_IMS_ORG;
-        const sandbox = params.CAMPAIGN_TRIGGER_SANDBOX || process.env.CAMPAIGN_TRIGGER_SANDBOX;
-
-        if (!clientId || !clientSecret || !scope || !imsOrg || !sandbox) {
+        let campaignConfig;
+        try {
+            campaignConfig = getCampaignTriggerConfig(params);
+        } catch (error) {
+            if (!(error instanceof ConfigError)) {
+                throw error;
+            }
             return {
                 statusCode: 500,
                 headers: { 'Content-Type': 'application/json' },
                 body: { error: 'Campaign trigger configuration is missing' }
             };
         }
+
+        const { clientId, clientSecret, scope, imsOrg, sandbox } = campaignConfig;
         
         // Get OAuth token
         const tokenResponse = await fetch('https://ims-na1.adobelogin.com/ims/token/v3', {

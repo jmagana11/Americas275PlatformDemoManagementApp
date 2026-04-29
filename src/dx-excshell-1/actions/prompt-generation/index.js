@@ -1,4 +1,5 @@
 const fetch = require('node-fetch')
+const { ConfigError, getAzureOpenAIConfig } = require('../shared/config')
 
 /**
  * This action generates prompts using Azure OpenAI based on image analysis results
@@ -27,10 +28,13 @@ async function main(params) {
     }
   }
 
-  const AZURE_OPENAI_ENDPOINT = params.AZURE_OPENAI_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT
-  const AZURE_OPENAI_KEY = params.AZURE_OPENAI_KEY || process.env.AZURE_OPENAI_KEY
-
-  if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_KEY) {
+  let azureOpenAIConfig
+  try {
+    azureOpenAIConfig = getAzureOpenAIConfig(params, 'text')
+  } catch (error) {
+    if (!(error instanceof ConfigError)) {
+      throw error
+    }
     return {
       statusCode: 500,
       body: { error: 'Azure OpenAI configuration is missing' }
@@ -54,11 +58,11 @@ The prompt should:
 
 Generate a concise but descriptive prompt that would create a similar image containing these elements: ${tagsText}.`
 
-    const response = await fetch(AZURE_OPENAI_ENDPOINT, {
+    const response = await fetch(azureOpenAIConfig.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'api-key': AZURE_OPENAI_KEY
+        'api-key': azureOpenAIConfig.apiKey
       },
       body: JSON.stringify({
         messages: [

@@ -98,4 +98,17 @@ describe('App Builder configuration safety', () => {
     expect(dependencies).toHaveProperty('uuid')
     expect(dependencies).toHaveProperty('prop-types')
   })
+
+  test('uses canonical env sources for known duplicate-valued app config', () => {
+    const config = fs.readFileSync(extConfigPath, 'utf8')
+
+    expect(config).toContain('MS_APP_ROLE_ID: $MS_APP_ROLE_ID')
+    expect(config).not.toContain('$MA1HOL_MS_APP_ROLE_ID')
+    expect(config).not.toContain('$POT5HOL_MS_APP_ROLE_ID')
+    expect(config).not.toContain('$CAMPAIGN_TRIGGER_CLIENT_ID')
+    expect(config).not.toContain('$CAMPAIGN_TRIGGER_CLIENT_SECRET')
+    expect(config).not.toContain('$CAMPAIGN_TRIGGER_IMS_ORG')
+    expect(config).toContain('CAMPAIGN_TRIGGER_SCOPE: $CAMPAIGN_TRIGGER_SCOPE')
+    expect(config).toContain('CAMPAIGN_TRIGGER_SANDBOX: $CAMPAIGN_TRIGGER_SANDBOX')
+  })
 })
