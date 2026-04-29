@@ -27,6 +27,60 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-04-29 - M4 API Monitor And API Proxy Storage Alignment
+
+Branch: `codex/m4-storage-alignment`
+
+Milestone: M4 - API Monitor And API Proxy Storage Alignment
+
+Intent:
+- Document the current API Monitor, API Proxy, and session-manager Azure Blob storage schemas with redacted sample shapes.
+- Add shared schema/version helpers so new session records have an explicit storage version while old sessions still load.
+- Align API Monitor, API Proxy, and session-manager around shared storage path and session-normalization logic without changing action names, routes, auth annotations, Runtime version, or web action URLs.
+- Add focused compatibility tests for old session shapes and new schema-versioned session records.
+
+Result:
+- Added `docs/API_STORAGE_SCHEMA.md` with redacted sample shapes for API Monitor session blobs, API Monitor webhook event blobs, API Proxy user/session blobs, and session-manager feature blobs.
+- Added `actions/shared/sessionStore.js` with storage schema version constants, stable path helpers, API Monitor/API Proxy/session-manager normalizers, and shared array-event list/clear helpers.
+- API Monitor new session blobs now include `storageSchemaVersion: 1` and a small `features.apiMonitor` storage map while preserving existing `session`, `requestLogs`, `webhookLogs`, and `proxyConfigs` fields.
+- API Monitor session lookup now normalizes old session blobs in memory, and outbound request-log list/clear behavior uses the shared monitor store helpers.
+- API Proxy now uses the shared Azure Blob helper plus shared path/schema normalization for both user-level `users/<userId>/sessions.json` and session-level `sessions/<sessionId>/config.json` records.
+- `session-manager` now uses the shared Azure Blob helper and shared feature-session normalization while preserving the existing `sessions/<userId>-session.json` path.
+- Added focused Jest coverage for storage paths, schema versioning, old-shape normalization, and shared array-backed event helpers.
+
+Files changed:
+- `AGENT.md`
+- `README.md`
+- `docs/API_STORAGE_SCHEMA.md`
+- `docs/APP_REFACTOR_PLAN.md`
+- `docs/REFACTOR_CHANGE_LOG.md`
+- `src/dx-excshell-1/actions/shared/sessionStore.js`
+- `src/dx-excshell-1/actions/shared/apiMonitorStore.js`
+- `src/dx-excshell-1/actions/api-monitor/index.js`
+- `src/dx-excshell-1/actions/api-proxy/index.js`
+- `src/dx-excshell-1/actions/session-manager/index.js`
+- `src/dx-excshell-1/test/sessionStore.test.js`
+
+Behavior impact:
+- Compatibility-preserving backend storage alignment.
+- Existing blob paths are preserved.
+- Existing old sessions without `storageSchemaVersion` continue to load and are normalized on write.
+- New or rewritten API Monitor, API Proxy, and session-manager records include `storageSchemaVersion: 1`.
+- No deployment, action URL, route, Runtime, auth annotation, or credential changes were made.
+
+Verification:
+- Passed before implementation: `npm test -- --runInBand` - 13 suites, 89 tests.
+- Passed focused: `node node_modules/jest/bin/jest.js --passWithNoTests src/dx-excshell-1/test/sessionStore.test.js src/dx-excshell-1/test/apiMonitorStore.test.js --runInBand` - 2 suites, 14 tests.
+- Passed: `npm test -- --runInBand` - 14 suites, 97 tests.
+- Passed: `aio app build` - built 39 actions and web assets.
+- Passed: user manual smoke test for the M4 storage flows.
+
+Open questions:
+- Whether outbound API Monitor request logs and API Proxy request logs should move to per-event blobs in a later milestone after schema alignment is documented.
+
+Next recommended step:
+- Proceed to M8: organization-specific Adobe/Microsoft config cluster.
+
 ## 2026-04-29 - M3 API Monitor Inbound Webhook Correctness
 
 Branch: `codex/m3-api-monitor-webhooks`

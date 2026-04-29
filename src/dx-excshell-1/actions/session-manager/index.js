@@ -1,15 +1,22 @@
-const { BlobServiceClient } = require('@azure/storage-blob')
+const {
+  createBlobServiceClient,
+  deleteBlobIfExists,
+  readJsonBlob,
+  writeJsonBlob
+} = require('../shared/blobStore')
+const {
+  LEGACY_SESSION_CONTAINER_NAME,
+  getSessionManagerBlobPath,
+  normalizeFeatureSessionDocument
+} = require('../shared/sessionStore')
+
+const SESSION_MANAGER_BLOB_OPTIONS = Object.freeze({
+  containerName: LEGACY_SESSION_CONTAINER_NAME
+})
 
 // Helper function to get blob service client using environment variables
 function getBlobServiceClient(params) {
-  const blobUrl = params.AZURE_BLOB_URL || process.env.AZURE_BLOB_URL
-  const sasToken = params.AZURE_SAS_TOKEN || process.env.AZURE_SAS_TOKEN
-  
-  if (!blobUrl || !sasToken) {
-    throw new Error('Azure Blob Storage credentials not configured')
-  }
-  
-  return new BlobServiceClient(`${blobUrl}${sasToken}`)
+  return createBlobServiceClient(params)
 }
 
 // Helper function to get user identifier from headers
@@ -29,23 +36,14 @@ function getUserIdentifier(headers) {
 
 // Helper function to get session blob path
 function getSessionBlobPath(userId) {
-  return `sessions/${userId}-session.json`
+  return getSessionManagerBlobPath(userId)
 }
 
 // Helper function to read JSON from blob
 async function readJsonFromBlob(blobServiceClient, blobPath) {
   try {
-    const containerClient = blobServiceClient.getContainerClient('demos')
-    const blobClient = containerClient.getBlobClient(blobPath)
-    
-    if (!(await blobClient.exists())) {
-      return null // Session doesn't exist yet
-    }
-    
-    const downloadResponse = await blobClient.download()
-    const streamBody = downloadResponse.readableStreamBody || downloadResponse._response.readableStreamBody
-    const downloaded = await streamToString(streamBody)
-    return JSON.parse(downloaded)
+    const sessionData = await readJsonBlob(blobServiceClient, blobPath, SESSION_MANAGER_BLOB_OPTIONS)
+    return sessionData ? normalizeFeatureSessionDocument(sessionData) : null
   } catch (error) {
     console.error('Error reading session from blob:', error)
     if (error.statusCode === 404) {
@@ -58,16 +56,10 @@ async function readJsonFromBlob(blobServiceClient, blobPath) {
 // Helper function to write JSON to blob
 async function writeJsonToBlob(blobServiceClient, blobPath, data) {
   try {
-    const containerClient = blobServiceClient.getContainerClient('demos')
-    const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
-    
-    const content = JSON.stringify(data, null, 2)
-    const uploadResponse = await blockBlobClient.upload(content, content.length, {
-      blobHTTPHeaders: {
-        blobContentType: 'application/json'
-      },
+    const uploadResponse = await writeJsonBlob(blobServiceClient, blobPath, normalizeFeatureSessionDocument(data), {
+      ...SESSION_MANAGER_BLOB_OPTIONS,
       metadata: {
-        lastModified: new Date().toISOString()
+        purpose: 'session-manager'
       }
     })
     
@@ -76,20 +68,6 @@ async function writeJsonToBlob(blobServiceClient, blobPath, data) {
     console.error('Error writing session to blob:', error)
     throw error
   }
-}
-
-// Helper function to convert stream to string
-async function streamToString(readableStream) {
-  return new Promise((resolve, reject) => {
-    const chunks = []
-    readableStream.on('data', (data) => {
-      chunks.push(data.toString())
-    })
-    readableStream.on('end', () => {
-      resolve(chunks.join(''))
-    })
-    readableStream.on('error', reject)
-  })
 }
 
 // Main function
@@ -206,9 +184,7 @@ async function deleteSession(blobServiceClient, blobPath, params) {
   if (!featureName) {
     // Delete entire session file
     try {
-      const containerClient = blobServiceClient.getContainerClient('demos')
-      const blobClient = containerClient.getBlobClient(blobPath)
-      await blobClient.delete()
+      await deleteBlobIfExists(blobServiceClient, blobPath, SESSION_MANAGER_BLOB_OPTIONS)
       
       return {
         statusCode: 200,
@@ -258,4 +234,4 @@ async function deleteSession(blobServiceClient, blobPath, params) {
   }
 }
 
-exports.main = main 
+exports.main = main

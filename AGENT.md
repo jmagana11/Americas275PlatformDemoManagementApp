@@ -19,6 +19,7 @@ This file gives future agent sessions enough context to work safely without re-l
 - M1 is complete locally: shared Runtime config resolver, app-owned duplicate env dedupe, prompt-generation migration, and Campaign Trigger canonical credential resolution.
 - M2 is complete locally: shared Azure Blob helper, JSON read/write helpers, not-found handling, metadata normalization, prefix list/delete support, and API Monitor/webhook receiver helper migration.
 - M3 is complete locally: API Monitor inbound webhooks now use per-event blobs with shared session lookup, deterministic read/clear behavior, stable UI row keys, and visible live refresh.
+- M4 is complete locally: API Monitor, API Proxy, and session-manager storage paths are documented, new/re-written session records use `storageSchemaVersion: 1`, and all three areas use shared schema/path normalization helpers while preserving existing blob paths.
 
 ## Non-Negotiables
 
@@ -41,6 +42,7 @@ aio app build
 - Because of that, monitor/logger actions must filter Runtime inputs before storing or rendering request payloads.
 - Current redaction utilities live in `src/dx-excshell-1/actions/shared/redaction.js`.
 - Shared config utilities live in `src/dx-excshell-1/actions/shared/config.js`.
+- Shared storage schema utilities live in `src/dx-excshell-1/actions/shared/sessionStore.js`.
 - App-owned duplicate env values should resolve through canonical inputs first, with legacy names kept only as temporary aliases in the resolver.
 - Frontend action URLs come from generated App Builder config imported as `allActions` from `src/dx-excshell-1/web-src/src/config.json`.
 - Local dev normally runs at `http://localhost:9080`.
@@ -60,6 +62,7 @@ src/dx-excshell-1/web-src/src/utils/accessControl.js
 src/dx-excshell-1/web-src/src/utils/actionUrls.js
 src/dx-excshell-1/test/
 docs/APP_REFACTOR_PLAN.md
+docs/API_STORAGE_SCHEMA.md
 docs/REFACTOR_CHANGE_LOG.md
 ```
 
@@ -75,7 +78,8 @@ docs/REFACTOR_CHANGE_LOG.md
    - M3 moved inbound webhook events to per-event blobs under `api-monitor/events/<sessionId>/webhooks/`.
    - `getWebhookLogs`, `clearWebhookLogs`, and `webhook-receiver` now share session lookup and webhook event storage helpers.
    - Legacy session-embedded `webhookLogs` still read and clear gracefully.
-   - Remaining storage work belongs in M4: align API Monitor, API Proxy, and `session-manager` around a documented schema.
+   - M4 documented the current API Monitor/API Proxy/session-manager schemas and added shared schema version normalization.
+   - Remaining storage work is a future event-log follow-up: decide whether outbound API Monitor and API Proxy request logs should move from array-backed records to per-event blobs.
 
 3. Repeated backend helpers:
    - Azure Blob client creation is centralized for migrated API Monitor actions, but still appears in non-migrated actions.
@@ -148,4 +152,4 @@ aio app build
 
 ## Suggested First Follow-Up
 
-Start with Milestone M4 in `docs/APP_REFACTOR_PLAN.md`: align API Monitor, API Proxy, and session-manager storage around one documented schema. M8 and M7 remain the next high-value config/backend helper clusters after the storage model is stable.
+Start with Milestone M8 in `docs/APP_REFACTOR_PLAN.md`: organization-specific Adobe/Microsoft config cluster. M7 remains the next high-value backend helper cluster after the org config model is stable.

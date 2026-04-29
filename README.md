@@ -11,6 +11,7 @@ The app is a React Spectrum single-page application running in Experience Cloud 
 - Provides AI tooling for image analysis, prompt generation, image generation, and AI-assisted profile creation.
 - Provides operational utilities including API Monitor, API Proxy, URL Shortener, file upload/download, token/crypto helpers, and JMeter-related testing tools.
 - Stores API Monitor and API Proxy session data in Azure Blob Storage.
+- Documents API Monitor, API Proxy, and session-manager blob schemas in `docs/API_STORAGE_SCHEMA.md`.
 - Stores API Monitor inbound webhook events as individual Azure Blob JSON files under the session event prefix, while keeping the session JSON blob as a compatibility and summary record.
 - Resolves service credentials server-side through App Builder inputs/environment variables, not from frontend source.
 
@@ -95,7 +96,10 @@ Shared Azure Blob helpers live in:
 ```text
 src/dx-excshell-1/actions/shared/blobStore.js
 src/dx-excshell-1/actions/shared/apiMonitorStore.js
+src/dx-excshell-1/actions/shared/sessionStore.js
 ```
+
+New and rewritten API Monitor, API Proxy, and session-manager session records include `storageSchemaVersion: 1`; existing records without the field remain readable and are normalized on write.
 
 API Monitor inbound webhooks are stored per event at:
 

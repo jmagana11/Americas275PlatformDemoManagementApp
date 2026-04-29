@@ -1,8 +1,26 @@
-const { BlobServiceClient } = require('@azure/storage-blob')
 const axios = require('axios')
 const { v4: uuidv4 } = require('uuid')
 const https = require('https')
+const {
+  createBlobServiceClient,
+  deleteBlobIfExists,
+  readJsonBlob,
+  writeJsonBlob
+} = require('../shared/blobStore')
 const { redactObject, safeStringify } = require('../shared/redaction')
+const {
+  LEGACY_SESSION_CONTAINER_NAME,
+  createApiProxyUserSessionData,
+  createProxySessionData,
+  getApiProxySessionBlobPath,
+  getApiProxyUserSessionBlobPath,
+  normalizeApiProxyUserSessionData,
+  normalizeProxySessionData
+} = require('../shared/sessionStore')
+
+const API_PROXY_BLOB_OPTIONS = Object.freeze({
+  containerName: LEGACY_SESSION_CONTAINER_NAME
+})
 
 async function main(params) {
   try {
@@ -956,36 +974,49 @@ function getUserIdentifier(headers) {
 }
 
 function getBlobServiceClient(params) {
-  const blobUrl = params.AZURE_BLOB_URL
-  const sasToken = params.AZURE_SAS_TOKEN
-  if (!blobUrl || !sasToken) {
-    throw new Error('AZURE_BLOB_URL and AZURE_SAS_TOKEN are required')
-  }
-  const containerUrl = `${blobUrl}${sasToken}`
-  return new BlobServiceClient(containerUrl)
+  return createBlobServiceClient(params)
 }
 
 function getSessionBlobPath(userId) {
-  return `users/${userId}/sessions.json`
+  return getApiProxyUserSessionBlobPath(userId)
 }
 
 function getSessionLevelBlobPath(sessionId) {
-  return `sessions/${sessionId}/config.json`
+  return getApiProxySessionBlobPath(sessionId)
+}
+
+function getUserIdFromSessionBlobPath(blobPath) {
+  const match = /^users\/(.+)\/sessions\.json$/.exec(blobPath)
+  return match ? match[1] : undefined
+}
+
+function getSessionIdFromSessionLevelBlobPath(blobPath) {
+  const match = /^sessions\/(.+)\/config\.json$/.exec(blobPath)
+  return match ? match[1] : undefined
+}
+
+function normalizeApiProxyBlobData(blobPath, data) {
+  if (!data) {
+    return data
+  }
+
+  const userId = getUserIdFromSessionBlobPath(blobPath)
+  if (userId) {
+    return normalizeApiProxyUserSessionData(data, { userId })
+  }
+
+  const sessionId = getSessionIdFromSessionLevelBlobPath(blobPath)
+  if (sessionId) {
+    return normalizeProxySessionData(data, { sessionId })
+  }
+
+  return data
 }
 
 async function readJsonFromBlob(blobServiceClient, blobPath) {
   try {
-    const containerClient = blobServiceClient.getContainerClient('demos')
-    const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
-    
-    if (!(await blockBlobClient.exists())) {
-      return null // Session doesn't exist yet
-    }
-    
-    const downloadResponse = await blockBlobClient.download()
-    const streamBody = downloadResponse.readableStreamBody || downloadResponse._response.readableStreamBody
-    const downloaded = await streamToString(streamBody)
-    return JSON.parse(downloaded)
+    const data = await readJsonBlob(blobServiceClient, blobPath, API_PROXY_BLOB_OPTIONS)
+    return normalizeApiProxyBlobData(blobPath, data)
   } catch (error) {
     console.error('Error reading session from blob:', error)
     if (error.statusCode === 404) {
@@ -997,35 +1028,20 @@ async function readJsonFromBlob(blobServiceClient, blobPath) {
 
 async function writeJsonToBlob(blobServiceClient, blobPath, data) {
   try {
-    const containerClient = blobServiceClient.getContainerClient('demos')
-    const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
-    
-    const content = JSON.stringify(data, null, 2)
-    await blockBlobClient.upload(content, content.length, {
-      blobHTTPHeaders: {
-        blobContentType: 'application/json'
-      },
+    const normalizedData = normalizeApiProxyBlobData(blobPath, data)
+    if (normalizedData && typeof normalizedData === 'object') {
+      normalizedData.lastModified = new Date().toISOString()
+    }
+    await writeJsonBlob(blobServiceClient, blobPath, normalizedData, {
+      ...API_PROXY_BLOB_OPTIONS,
       metadata: {
-        lastModified: new Date().toISOString()
+        purpose: getSessionIdFromSessionLevelBlobPath(blobPath) ? 'api-proxy-session' : 'api-proxy-user-session'
       }
     })
   } catch (error) {
     console.error('Error writing session to blob:', error)
     throw error
   }
-}
-
-async function streamToString(readableStream) {
-  return new Promise((resolve, reject) => {
-    const chunks = []
-    readableStream.on('data', (data) => {
-      chunks.push(data.toString())
-    })
-    readableStream.on('end', () => {
-      resolve(chunks.join(''))
-    })
-    readableStream.on('error', reject)
-  })
 }
 
 // Add new function to list sessions
@@ -1101,11 +1117,7 @@ async function saveProxyConfig(params, config) {
     let userSessionData = await readJsonFromBlob(blobServiceClient, userBlobPath)
     
     if (!userSessionData) {
-      userSessionData = {
-        userId: userId,
-        created: new Date().toISOString(),
-        features: {}
-      }
+      userSessionData = createApiProxyUserSessionData(userId)
     }
     
     // Initialize apiProxy feature if not exists
@@ -1154,14 +1166,11 @@ async function saveProxyConfig(params, config) {
     console.log(`Saving to session-level storage...`)
     const sessionBlobPath = getSessionLevelBlobPath(sessionId)
     
-    // Create session-level data structure
-    const sessionLevelData = {
-      sessionId: sessionId,
-      userId: userId, // Keep reference to owner
-      created: new Date().toISOString(),
-      lastModified: new Date().toISOString(),
+    // Create versioned session-level data structure.
+    const sessionLevelData = createProxySessionData(sessionId, userId, {
+      name: config.name || `Session ${sessionId.substring(0, 8)}`,
       config: configWithSessionId
-    }
+    })
     
     // Save to session-level blob storage
     await writeJsonToBlob(blobServiceClient, sessionBlobPath, sessionLevelData)
@@ -1207,11 +1216,7 @@ async function createSession(params, body) {
     let userSessionData = await readJsonFromBlob(blobServiceClient, userBlobPath)
     
     if (!userSessionData) {
-      userSessionData = {
-        userId,
-        created: new Date().toISOString(),
-        features: {}
-      }
+      userSessionData = createApiProxyUserSessionData(userId)
     }
 
     // Ensure apiProxy feature section
@@ -1245,14 +1250,10 @@ async function createSession(params, body) {
     console.log(`Creating session-level storage...`)
     const sessionBlobPath = getSessionLevelBlobPath(sessionId)
     
-    const sessionLevelData = {
-      sessionId: sessionId,
-      userId: userId,
+    const sessionLevelData = createProxySessionData(sessionId, userId, {
       name: sessionName,
-      created: new Date().toISOString(),
-      lastModified: new Date().toISOString(),
-      config: null // No config yet
-    }
+      config: null
+    })
     
     await writeJsonToBlob(blobServiceClient, sessionBlobPath, sessionLevelData)
     console.log(`Created session-level storage: ${sessionBlobPath}`)
@@ -1524,14 +1525,9 @@ async function deleteProxyConfig(params, sessionId) {
     const sessionBlobPath = getSessionLevelBlobPath(sessionId)
     
     try {
-      const containerClient = blobServiceClient.getContainerClient('demos')
-      const blobClient = containerClient.getBlobClient(sessionBlobPath)
-      
-      if (await blobClient.exists()) {
-        await blobClient.delete()
-        deletedFromSession = true
-        console.log(`Deleted from session-level storage: ${sessionBlobPath}`)
-      }
+      const deleteResult = await deleteBlobIfExists(blobServiceClient, sessionBlobPath, API_PROXY_BLOB_OPTIONS)
+      deletedFromSession = deleteResult === undefined || deleteResult.succeeded !== false
+      console.log(`Deleted from session-level storage: ${sessionBlobPath}`)
     } catch (error) {
       console.error('Error deleting from session-level storage:', error)
     }

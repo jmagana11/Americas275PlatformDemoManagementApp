@@ -175,24 +175,30 @@ Acceptance criteria:
 
 ### M4: API Monitor And API Proxy Storage Alignment
 
+Status: Completed locally on 2026-04-29.
+
 Goal: Make API Monitor, API Proxy, and session-manager share a storage model instead of parallel models.
 
 Current observations:
-- API Monitor still stores `requestLogs` and `proxyConfigs` in one session blob.
-- M3 moved inbound `webhookLogs` to per-event blobs while keeping legacy embedded logs readable.
-- API Proxy has a richer `features.apiProxy` model and migration logic.
-- `session-manager` exists but is not clearly the single source of truth.
+- Current storage schemas are documented in `docs/API_STORAGE_SCHEMA.md`.
+- Existing blob paths remain unchanged for API Monitor, API Proxy, and `session-manager`.
+- New and rewritten session documents use `storageSchemaVersion: 1`.
+- Shared schema/path/normalization helpers live in `actions/shared/sessionStore.js`.
+- API Monitor session lookup now normalizes old session blobs in memory and uses shared request-log list/clear helpers.
+- API Proxy and `session-manager` now use the shared Azure Blob helper and shared schema path/normalization helpers while keeping their legacy `demos` container behavior.
+- M3 moved inbound API Monitor `webhookLogs` to per-event blobs while keeping legacy embedded logs readable.
+- Outbound API Monitor request logs and API Proxy request logs remain array-backed in M4; moving those to per-event blobs is a future follow-up.
 
-Implementation plan:
-1. Document current storage schemas with sample redacted fixtures.
-2. Choose target schema:
+Completed implementation:
+1. Documented current storage schemas with sample redacted fixtures.
+2. Chose a compatibility-preserving target schema:
    - session metadata
    - feature configs
    - request events
    - webhook events
    - proxy events
-3. Add schema versioning and migration helpers.
-4. Move API Monitor first, API Proxy second.
+3. Added schema versioning and migration/normalization helpers.
+4. Moved API Monitor first, then API Proxy and `session-manager`, without changing action names, paths, routes, auth annotations, or Runtime version.
 
 Acceptance criteria:
 - Old sessions still load.
@@ -669,15 +675,15 @@ Completed:
 - M1: Canonical runtime config helper, credential resolver aliases, and app-owned duplicate env source dedupe.
 - M2: Shared Azure Blob helper and API Monitor/webhook receiver migration.
 - M3: API Monitor inbound webhook correctness with event-per-blob storage and stable UI selection.
+- M4: API Monitor, API Proxy, and session-manager storage schema alignment.
 
 Next recommended sequence:
-1. M4: API Monitor and API Proxy storage alignment.
-2. M8: Org-specific config cluster.
-3. M7: AEP backend helper cluster.
-4. M5 and M6: Frontend registry and access control cleanup.
-5. M9, M10, M11: Tool-specific cleanup.
-6. M12: Smoke automation expansion.
-7. M13: Auth hardening and Runtime upgrade.
+1. M8: Org-specific config cluster.
+2. M7: AEP backend helper cluster.
+3. M5 and M6: Frontend registry and access control cleanup.
+4. M9, M10, M11: Tool-specific cleanup.
+5. M12: Smoke automation expansion.
+6. M13: Auth hardening and Runtime upgrade.
 
 ## Change Log Rule
 

@@ -9,6 +9,15 @@ const {
   writeJsonBlob
 } = require('./blobStore')
 const { redactObject } = require('./redaction')
+const {
+  clearSessionEvents,
+  createApiMonitorSessionData,
+  getApiMonitorSessionBlobPath,
+  getApiMonitorWebhookEventBlobPath,
+  getApiMonitorWebhookEventPrefix,
+  listSessionEvents,
+  normalizeApiMonitorSessionData
+} = require('./sessionStore')
 
 const SESSION_BLOB_METADATA = Object.freeze({
   purpose: 'api-monitor-session-data'
@@ -26,16 +35,15 @@ function sanitizeUserId(userId) {
 }
 
 function getSessionBlobPath(userId, sessionId) {
-  return `api-monitor/DO_NOT_DELETE_APPBUILDER_${userId}_${sessionId}.json`
+  return getApiMonitorSessionBlobPath(userId, sessionId)
 }
 
 function getWebhookEventPrefix(sessionId) {
-  return `api-monitor/events/${sessionId}/webhooks/`
+  return getApiMonitorWebhookEventPrefix(sessionId)
 }
 
 function getWebhookEventBlobPath(sessionId, webhookEntry) {
-  const safeTimestamp = String(webhookEntry.timestamp || new Date().toISOString()).replace(/[:.]/g, '-')
-  return `${getWebhookEventPrefix(sessionId)}${safeTimestamp}_${webhookEntry.webhookId}.json`
+  return getApiMonitorWebhookEventBlobPath(sessionId, webhookEntry)
 }
 
 function getConfiguredOrgUserIds(params = {}) {
@@ -73,12 +81,16 @@ async function findMonitorSession(blobServiceClient, sessionId, options = {}) {
 
   for (const candidateUserId of candidates) {
     const blobPath = getSessionBlobPath(candidateUserId, sessionId)
-    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
+    const rawSessionData = await readJsonBlob(blobServiceClient, blobPath)
 
-    if (!sessionData) {
+    if (!rawSessionData) {
       continue
     }
 
+    const sessionData = normalizeApiMonitorSessionData(rawSessionData, {
+      sessionId,
+      userId: candidateUserId
+    })
     const score = scoreSessionData(sessionData)
     if (!bestSession || score > bestSession.score) {
       bestSession = {
@@ -94,22 +106,20 @@ async function findMonitorSession(blobServiceClient, sessionId, options = {}) {
 }
 
 function createMonitorSessionData(sessionId, userId, timestamp = new Date().toISOString()) {
-  return {
-    session: {
-      id: sessionId,
-      userId,
-      created: timestamp,
-      requestCount: 0,
-      webhookCount: 0,
-      lastActivity: timestamp
-    },
-    requestLogs: [],
-    webhookLogs: []
-  }
+  return createApiMonitorSessionData(sessionId, userId, timestamp)
 }
 
 async function writeMonitorSession(blobServiceClient, blobPath, sessionData, options = {}) {
-  return writeJsonBlob(blobServiceClient, blobPath, sessionData, {
+  const normalizedSessionData = normalizeApiMonitorSessionData(sessionData, {
+    sessionId: sessionData && sessionData.session && sessionData.session.id,
+    userId: sessionData && sessionData.session && sessionData.session.userId,
+    timestamp: options.timestamp
+  })
+  normalizedSessionData.lastModified = options.timestamp ||
+    normalizedSessionData.session.lastActivity ||
+    new Date().toISOString()
+
+  return writeJsonBlob(blobServiceClient, blobPath, normalizedSessionData, {
     ...options,
     metadata: {
       ...SESSION_BLOB_METADATA,
@@ -215,9 +225,43 @@ async function clearWebhookEvents(blobServiceClient, monitorSession, options = {
   return deleteResult
 }
 
+function listMonitorRequestEvents(sessionData, options = {}) {
+  const { events, totalCount } = listSessionEvents(sessionData, 'requestLogs', {
+    ...options,
+    newestFirst: true
+  })
+
+  return {
+    events: redactObject(events),
+    totalCount
+  }
+}
+
+async function clearMonitorRequestEvents(blobServiceClient, monitorSession, options = {}) {
+  const timestamp = options.timestamp || new Date().toISOString()
+  const sessionData = monitorSession.sessionData
+  const clearedCount = clearSessionEvents(sessionData, 'requestLogs')
+
+  sessionData.session.requestCount = 0
+  sessionData.session.lastActivity = timestamp
+
+  await writeMonitorSession(blobServiceClient, monitorSession.blobPath, sessionData)
+
+  return {
+    clearedCount
+  }
+}
+
 async function updateWebhookSessionSummary(blobServiceClient, monitorSession, options = {}) {
   const timestamp = options.timestamp || new Date().toISOString()
-  const latestSessionData = await readJsonBlob(blobServiceClient, monitorSession.blobPath) || monitorSession.sessionData
+  const latestSessionData = normalizeApiMonitorSessionData(
+    await readJsonBlob(blobServiceClient, monitorSession.blobPath) || monitorSession.sessionData,
+    {
+      sessionId: monitorSession.sessionData.session.id,
+      userId: monitorSession.sessionData.session.userId,
+      timestamp
+    }
+  )
   const { totalCount } = await listWebhookEvents(blobServiceClient, latestSessionData.session.id, {
     sessionData: latestSessionData
   })
@@ -231,6 +275,7 @@ async function updateWebhookSessionSummary(blobServiceClient, monitorSession, op
 }
 
 module.exports = {
+  clearMonitorRequestEvents,
   clearWebhookEvents,
   createMonitorSessionData,
   findMonitorSession,
@@ -239,6 +284,7 @@ module.exports = {
   getSessionBlobPath,
   getWebhookEventBlobPath,
   getWebhookEventPrefix,
+  listMonitorRequestEvents,
   listWebhookEvents,
   sanitizeUserId,
   updateWebhookSessionSummary,

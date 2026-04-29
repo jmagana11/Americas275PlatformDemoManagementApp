@@ -14,9 +14,12 @@ const {
   readJsonBlob
 } = require('../shared/blobStore')
 const {
+  clearMonitorRequestEvents,
   clearWebhookEvents,
+  createMonitorSessionData,
   findMonitorSession,
   getSessionBlobPath,
+  listMonitorRequestEvents,
   listWebhookEvents,
   writeMonitorSession
 } = require('../shared/apiMonitorStore')
@@ -133,19 +136,8 @@ async function createSession(params) {
     console.log(`Creating session for user: ${userId}`)
     console.log(`Session ID: ${sessionId}`)
     
-    // Create session data structure
-    const sessionData = {
-      session: {
-        id: sessionId,
-        userId: userId,
-        created: timestamp,
-        requestCount: 0,
-        webhookCount: 0,
-        lastActivity: timestamp
-      },
-      requestLogs: [],
-      webhookLogs: []
-    }
+    // Create versioned session data structure while preserving the existing blob path.
+    const sessionData = createMonitorSessionData(sessionId, userId, timestamp)
     
     console.log('Session data structure created')
     
@@ -203,26 +195,22 @@ async function proxyRequest(params) {
     
     console.log(`Proxy request for user: ${userId}, session: ${sessionId}`)
     
-    // Load session data from Azure Blob Storage
+    // Load session data from Azure Blob Storage using the shared session lookup rules.
     const blobServiceClient = createBlobServiceClient(params)
-    const blobPath = getSessionBlobPath(userId, sessionId)
-    
-    let sessionData = await readJsonBlob(blobServiceClient, blobPath)
-    
-    if (!sessionData) {
-      console.log(`Session not found for proxy request, trying fallback...`)
-      const fallbackPath = getSessionBlobPath('default_user', sessionId)
-      sessionData = await readJsonBlob(blobServiceClient, fallbackPath)
-      
-      if (!sessionData) {
-        return {
-          statusCode: 404,
-          body: { error: 'Session not found. Please create a new session.' }
-        }
-      } else {
-        console.log(`Found session using fallback path for proxy request`)
+    const monitorSession = await findMonitorSession(blobServiceClient, sessionId, {
+      params,
+      userId
+    })
+
+    if (!monitorSession) {
+      return {
+        statusCode: 404,
+        body: { error: 'Session not found. Please create a new session.' }
       }
     }
+
+    const blobPath = monitorSession.blobPath
+    let sessionData = monitorSession.sessionData
     
     const requestId = uuidv4()
     const startTime = Date.now()
@@ -310,7 +298,13 @@ async function proxyRequest(params) {
       try {
         // ALWAYS re-read the latest session data before saving to avoid overwriting concurrent changes
         console.log(`Save attempt ${saveAttempts + 1}: Re-reading session data before save`)
-        const latestSessionData = await readJsonBlob(blobServiceClient, blobPath)
+        const latestMonitorSession = await findMonitorSession(blobServiceClient, sessionId, {
+          params,
+          userId
+        })
+        const latestSessionData = latestMonitorSession && latestMonitorSession.blobPath === blobPath
+          ? latestMonitorSession.sessionData
+          : null
         if (latestSessionData) {
           // Merge the request data with the latest session data
           latestSessionData.requestLogs = latestSessionData.requestLogs || []
@@ -384,51 +378,33 @@ async function getLogs(params) {
     console.log(`User ID: ${userId}`)
     console.log(`Blob path: ${getSessionBlobPath(userId, sessionId)}`)
     
-    // Load session data from Azure Blob Storage
     const blobServiceClient = createBlobServiceClient(params)
-    const blobPath = getSessionBlobPath(userId, sessionId)
-    
-    console.log(`Attempting to read blob: ${blobPath}`)
-    let sessionData = await readJsonBlob(blobServiceClient, blobPath)
-    
-    if (!sessionData) {
-      console.log(`Session not found with current user ID, trying fallback approaches...`)
-      
-      // Try with default_user as fallback
-      const fallbackPath = getSessionBlobPath('default_user', sessionId)
-      console.log(`Trying fallback path: ${fallbackPath}`)
-      sessionData = await readJsonBlob(blobServiceClient, fallbackPath)
-      
-      if (!sessionData) {
-        // Try to list blobs with the session ID pattern to find the correct file
-        console.log(`Fallback also failed, session truly not found`)
-        return {
-          statusCode: 404,
-          body: { 
-            error: 'Session not found',
-            details: `Tried paths: ${blobPath}, ${fallbackPath}`,
-            sessionId,
-            userId
-          }
+    const monitorSession = await findMonitorSession(blobServiceClient, sessionId, {
+      params,
+      userId
+    })
+
+    if (!monitorSession) {
+      return {
+        statusCode: 404,
+        body: {
+          error: 'Session not found',
+          sessionId,
+          userId
         }
-      } else {
-        console.log(`Found session data using fallback path: ${fallbackPath}`)
       }
-    } else {
-      console.log(`Found session data using primary path: ${blobPath}`)
     }
     
-    // Return the most recent logs (up to limit)
-    const logs = redactObject(sessionData.requestLogs.slice(-limit).reverse())
+    const { events: logs, totalCount } = listMonitorRequestEvents(monitorSession.sessionData, { limit })
     
     return {
       statusCode: 200,
       body: {
         success: true,
         sessionId,
-        session: sessionData.session,
+        session: monitorSession.sessionData.session,
         logs,
-        totalCount: sessionData.requestLogs.length
+        totalCount
       }
     }
     
@@ -455,26 +431,20 @@ async function clearLogs(params) {
     
     console.log(`Clearing logs for user: ${userId}, session: ${sessionId}`)
     
-    // Load session data from Azure Blob Storage
     const blobServiceClient = createBlobServiceClient(params)
-    const blobPath = getSessionBlobPath(userId, sessionId)
+    const monitorSession = await findMonitorSession(blobServiceClient, sessionId, {
+      params,
+      userId
+    })
     
-    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
-    
-    if (!sessionData) {
+    if (!monitorSession) {
       return {
         statusCode: 404,
         body: { error: 'Session not found' }
       }
     }
     
-    // Clear the logs
-    sessionData.requestLogs = []
-    sessionData.session.requestCount = 0
-    sessionData.session.lastActivity = new Date().toISOString()
-    
-    // Save back to Azure Blob Storage
-    await writeMonitorSession(blobServiceClient, blobPath, sessionData)
+    await clearMonitorRequestEvents(blobServiceClient, monitorSession)
     
     return {
       statusCode: 200,
