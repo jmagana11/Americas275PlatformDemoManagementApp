@@ -27,6 +27,49 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-04-29 - M2 Shared Azure Blob Storage Module
+
+Branch: `codex/m2-blob-store`
+
+Milestone: M2 - Shared Azure Blob Storage Module
+
+Intent:
+- Add a shared Azure Blob storage helper for Runtime actions.
+- Centralize BlobServiceClient creation, JSON read/write, blob-not-found handling, JSON content headers, optional ETag conditional writes, and safe metadata handling.
+- Migrate the API Monitor and webhook receiver action cluster to use the helper while preserving current session blob paths and response behavior.
+- Add focused unit tests with mocked Azure Blob clients.
+
+Result:
+- Added `actions/shared/blobStore.js` with shared BlobServiceClient creation via the M1 Azure Blob config resolver.
+- Centralized JSON blob reads/writes, blob-not-found handling, JSON content headers, safe metadata normalization, reusable JSON blob store creation, and optional ETag conditional upload support.
+- Migrated `api-monitor` and `webhook-receiver` away from local duplicated Azure Blob helpers and onto the shared helper.
+- Preserved the existing API Monitor session blob path shape: `api-monitor/DO_NOT_DELETE_APPBUILDER_<userId>_<sessionId>.json`.
+- Added `test/blobStore.test.js` with mocked Azure Blob clients covering client creation, JSON reads, not-found behavior, JSON writes, metadata normalization, reusable store options, and ETag upload conditions.
+
+Files changed:
+- `src/dx-excshell-1/actions/shared/blobStore.js`
+- `src/dx-excshell-1/actions/api-monitor/index.js`
+- `src/dx-excshell-1/actions/webhook-receiver/index.js`
+- `src/dx-excshell-1/test/blobStore.test.js`
+- `docs/REFACTOR_CHANGE_LOG.md`
+
+Behavior impact:
+- Intended behavior-preserving storage helper extraction for the API Monitor/webhook receiver cluster.
+- Existing session blob paths, session JSON shape, request/webhook/proxy config fields, and Runtime input names remain unchanged.
+- Missing Azure Blob config now flows through the shared config resolver with value-free error messages.
+- No action names, package names, web action URLs, UI routes, Runtime annotations, auth settings, or Runtime versions were changed.
+
+Verification:
+- Passed: focused `node node_modules/jest/bin/jest.js --passWithNoTests src/dx-excshell-1/test/blobStore.test.js --runInBand` - 1 suite, 6 tests.
+- Passed: `npm test -- --runInBand` - 12 suites, 81 tests.
+- Passed: `aio app build` - built 39 actions and web assets.
+
+Open questions:
+- Whether M3 should use event-per-blob storage or ETag-protected session blob writes for API Monitor inbound webhook correctness.
+
+Next recommended step:
+- Proceed to M3: API Monitor inbound webhook correctness, building on the shared blob helper and deciding between event-per-blob storage and ETag-protected session blob writes.
+
 ## 2026-04-29 - M1 Config Resolver And Env Dedup Implemented
 
 Branch: `main`

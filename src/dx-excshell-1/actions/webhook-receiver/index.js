@@ -8,20 +8,20 @@
  */
 
 const { v4: uuidv4 } = require('uuid')
-const { BlobServiceClient } = require('@azure/storage-blob')
+const {
+  createBlobServiceClient,
+  readJsonBlob,
+  writeJsonBlob
+} = require('../shared/blobStore')
 const {
   buildRequestBodyFromFlattenedParams,
   redactObject,
   safeStringify
 } = require('../shared/redaction')
 
-// Helper function to get Azure Blob Storage client
-function getBlobServiceClient(params) {
-  const blobUrl = params.AZURE_BLOB_URL
-  const sasToken = params.AZURE_SAS_TOKEN
-  const containerUrl = `${blobUrl}${sasToken}`
-  return new BlobServiceClient(containerUrl)
-}
+const SESSION_BLOB_METADATA = Object.freeze({
+  purpose: 'api-monitor-session-data'
+})
 
 // Helper function to get IMS user identifier
 function getUserIdentifier(headers) {
@@ -60,58 +60,9 @@ function getSessionBlobPath(userId, sessionId) {
   return `api-monitor/DO_NOT_DELETE_APPBUILDER_${userId}_${sessionId}.json`
 }
 
-// Helper function to read JSON from blob
-async function readJsonFromBlob(blobServiceClient, blobPath) {
-  try {
-    const containerClient = blobServiceClient.getContainerClient('')
-    const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
-    
-    const downloadResponse = await blockBlobClient.download(0)
-    const content = await streamToString(downloadResponse.readableStreamBody)
-    return JSON.parse(content)
-  } catch (error) {
-    if (error.statusCode === 404) {
-      // File doesn't exist, return empty structure
-      return null
-    }
-    throw error
-  }
-}
-
-// Helper function to write JSON to blob
-async function writeJsonToBlob(blobServiceClient, blobPath, data) {
-  try {
-    const containerClient = blobServiceClient.getContainerClient('')
-    const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
-    
-    const jsonContent = JSON.stringify(data, null, 2)
-    
-    await blockBlobClient.upload(jsonContent, jsonContent.length, {
-      blobHTTPHeaders: {
-        blobContentType: 'application/json'
-      },
-      metadata: {
-        updatedAt: new Date().toISOString(),
-        purpose: 'api-monitor-session-data'
-      }
-    })
-  } catch (error) {
-    console.error('Error writing to blob:', error)
-    throw error
-  }
-}
-
-// Helper function to convert stream to string
-async function streamToString(readableStream) {
-  return new Promise((resolve, reject) => {
-    const chunks = []
-    readableStream.on('data', (data) => {
-      chunks.push(data.toString())
-    })
-    readableStream.on('end', () => {
-      resolve(chunks.join(''))
-    })
-    readableStream.on('error', reject)
+function writeSessionJsonBlob(blobServiceClient, blobPath, data) {
+  return writeJsonBlob(blobServiceClient, blobPath, data, {
+    metadata: SESSION_BLOB_METADATA
   })
 }
 
@@ -158,7 +109,7 @@ async function main(params) {
     console.log(`Webhook for user: ${userId}, session: ${sessionId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     
         // Try to find the session data with different user IDs (find the best match)
     let sessionData = null
@@ -183,7 +134,7 @@ async function main(params) {
       const testBlobPath = getSessionBlobPath(testUserId, sessionId)
       console.log(`Blob path: ${testBlobPath}`)
       
-      const testSessionData = await readJsonFromBlob(blobServiceClient, testBlobPath)
+      const testSessionData = await readJsonBlob(blobServiceClient, testBlobPath)
       if (testSessionData) {
         // Calculate a score based on session completeness
         const requestCount = testSessionData.session.requestCount || 0
@@ -335,7 +286,7 @@ async function main(params) {
         // Re-read the latest session data before saving to avoid overwriting concurrent changes
         if (saveAttempts > 0) {
           console.log(`Retry attempt ${saveAttempts}: Re-reading session data before save`)
-          const latestSessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+          const latestSessionData = await readJsonBlob(blobServiceClient, blobPath)
           if (latestSessionData) {
             // Merge the webhook data with the latest session data
             latestSessionData.webhookLogs = latestSessionData.webhookLogs || []
@@ -347,7 +298,7 @@ async function main(params) {
           }
         }
         
-        await writeJsonToBlob(blobServiceClient, blobPath, sessionData)
+        await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
         console.log(`Successfully saved session data on attempt ${saveAttempts + 1}`)
         break
         

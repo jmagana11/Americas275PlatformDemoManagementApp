@@ -9,16 +9,16 @@
 
 const axios = require('axios')
 const { v4: uuidv4 } = require('uuid')
-const { BlobServiceClient } = require('@azure/storage-blob')
+const {
+  createBlobServiceClient,
+  readJsonBlob,
+  writeJsonBlob
+} = require('../shared/blobStore')
 const { redactObject, redactValue, safeStringify } = require('../shared/redaction')
 
-// Helper function to get Azure Blob Storage client
-function getBlobServiceClient(params) {
-  const blobUrl = params.AZURE_BLOB_URL
-  const sasToken = params.AZURE_SAS_TOKEN
-  const containerUrl = `${blobUrl}${sasToken}`
-  return new BlobServiceClient(containerUrl)
-}
+const SESSION_BLOB_METADATA = Object.freeze({
+  purpose: 'api-monitor-session-data'
+})
 
 // Helper function to get IMS user identifier
 function getUserIdentifier(headers) {
@@ -57,94 +57,9 @@ function getSessionBlobPath(userId, sessionId) {
   return `api-monitor/DO_NOT_DELETE_APPBUILDER_${userId}_${sessionId}.json`
 }
 
-// Helper function to read JSON from blob
-async function readJsonFromBlob(blobServiceClient, blobPath) {
-  try {
-    console.log('=== DEBUG: Reading from blob ===')
-    console.log('Blob path:', blobPath)
-    console.log('BlobServiceClient configured:', !!blobServiceClient)
-    
-    const containerClient = blobServiceClient.getContainerClient('')
-    console.log('Container client created')
-    
-    const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
-    console.log('Block blob client created')
-    
-    console.log('Attempting to download blob...')
-    const downloadResponse = await blockBlobClient.download(0)
-    console.log('Download response received')
-    
-    const content = await streamToString(downloadResponse.readableStreamBody)
-    const parsed = JSON.parse(content)
-    console.log('Content length:', content.length)
-    console.log('Content preview:', safeStringify(parsed).substring(0, 200))
-    console.log('Successfully parsed JSON')
-    return parsed
-  } catch (error) {
-    console.error('Error reading from blob:', error)
-    console.error('Error code:', error.code)
-    console.error('Error statusCode:', error.statusCode)
-    console.error('Error message:', error.message)
-    
-    if (error.statusCode === 404 || error.code === 'BlobNotFound') {
-      console.log('File doesn\'t exist, returning null')
-      return null
-    }
-    throw error
-  }
-}
-
-// Helper function to write JSON to blob
-async function writeJsonToBlob(blobServiceClient, blobPath, data) {
-  try {
-    console.log('=== DEBUG: Writing to blob ===')
-    console.log('Blob path:', blobPath)
-    console.log('Data keys:', Object.keys(data))
-    console.log('BlobServiceClient configured:', !!blobServiceClient)
-    
-    const containerClient = blobServiceClient.getContainerClient('')
-    console.log('Container client created')
-    
-    const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
-    console.log('Block blob client created')
-    
-    const jsonContent = JSON.stringify(data, null, 2)
-    console.log('JSON content length:', jsonContent.length)
-    console.log('JSON content preview:', safeStringify(data).substring(0, 200))
-    
-    console.log('Attempting to upload blob...')
-    await blockBlobClient.upload(jsonContent, jsonContent.length, {
-      blobHTTPHeaders: {
-        blobContentType: 'application/json'
-      },
-      metadata: {
-        updatedAt: new Date().toISOString(),
-        purpose: 'api-monitor-session-data'
-      }
-    })
-    
-    console.log('Successfully uploaded blob')
-  } catch (error) {
-    console.error('Error writing to blob:', error)
-    console.error('Error code:', error.code)
-    console.error('Error statusCode:', error.statusCode)
-    console.error('Error message:', error.message)
-    console.error('Error stack:', error.stack)
-    throw error
-  }
-}
-
-// Helper function to convert stream to string
-async function streamToString(readableStream) {
-  return new Promise((resolve, reject) => {
-    const chunks = []
-    readableStream.on('data', (data) => {
-      chunks.push(data.toString())
-    })
-    readableStream.on('end', () => {
-      resolve(chunks.join(''))
-    })
-    readableStream.on('error', reject)
+function writeSessionJsonBlob(blobServiceClient, blobPath, data) {
+  return writeJsonBlob(blobServiceClient, blobPath, data, {
+    metadata: SESSION_BLOB_METADATA
   })
 }
 
@@ -245,11 +160,11 @@ async function createSession(params) {
     
     // Store in Azure Blob Storage
     console.log('Getting blob service client...')
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
     console.log('Writing to blob storage...')
-    await writeJsonToBlob(blobServiceClient, blobPath, sessionData)
+    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
     
     console.log(`Session created: ${sessionId} for user: ${userId}`)
     
@@ -298,15 +213,15 @@ async function proxyRequest(params) {
     console.log(`Proxy request for user: ${userId}, session: ${sessionId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
-    let sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    let sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       console.log(`Session not found for proxy request, trying fallback...`)
       const fallbackPath = getSessionBlobPath('default_user', sessionId)
-      sessionData = await readJsonFromBlob(blobServiceClient, fallbackPath)
+      sessionData = await readJsonBlob(blobServiceClient, fallbackPath)
       
       if (!sessionData) {
         return {
@@ -404,7 +319,7 @@ async function proxyRequest(params) {
       try {
         // ALWAYS re-read the latest session data before saving to avoid overwriting concurrent changes
         console.log(`Save attempt ${saveAttempts + 1}: Re-reading session data before save`)
-        const latestSessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+        const latestSessionData = await readJsonBlob(blobServiceClient, blobPath)
         if (latestSessionData) {
           // Merge the request data with the latest session data
           latestSessionData.requestLogs = latestSessionData.requestLogs || []
@@ -417,7 +332,7 @@ async function proxyRequest(params) {
           console.log(`No latest session data found, using original session data`)
         }
         
-        await writeJsonToBlob(blobServiceClient, blobPath, sessionData)
+        await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
         console.log(`Successfully saved session data on attempt ${saveAttempts + 1}`)
         break
         
@@ -479,11 +394,11 @@ async function getLogs(params) {
     console.log(`Blob path: ${getSessionBlobPath(userId, sessionId)}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
     console.log(`Attempting to read blob: ${blobPath}`)
-    let sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    let sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       console.log(`Session not found with current user ID, trying fallback approaches...`)
@@ -491,7 +406,7 @@ async function getLogs(params) {
       // Try with default_user as fallback
       const fallbackPath = getSessionBlobPath('default_user', sessionId)
       console.log(`Trying fallback path: ${fallbackPath}`)
-      sessionData = await readJsonFromBlob(blobServiceClient, fallbackPath)
+      sessionData = await readJsonBlob(blobServiceClient, fallbackPath)
       
       if (!sessionData) {
         // Try to list blobs with the session ID pattern to find the correct file
@@ -550,10 +465,10 @@ async function clearLogs(params) {
     console.log(`Clearing logs for user: ${userId}, session: ${sessionId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
-    const sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       return {
@@ -568,7 +483,7 @@ async function clearLogs(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeJsonToBlob(blobServiceClient, blobPath, sessionData)
+    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,
@@ -603,11 +518,11 @@ async function getWebhookLogs(params) {
     console.log(`Getting webhook logs for user: ${userId}, session: ${sessionId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
     console.log(`Looking for session data at blob path: ${blobPath}`)
-    const sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (sessionData) {
       console.log(`Found session data. Webhook logs count: ${(sessionData.webhookLogs || []).length}`)
@@ -665,10 +580,10 @@ async function clearWebhookLogs(params) {
     console.log(`Clearing webhook logs for user: ${userId}, session: ${sessionId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
-    const sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       return {
@@ -683,7 +598,7 @@ async function clearWebhookLogs(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeJsonToBlob(blobServiceClient, blobPath, sessionData)
+    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,
@@ -740,10 +655,10 @@ async function createProxyConfig(params) {
     console.log(`Creating proxy config for user: ${userId}, session: ${sessionId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
-    let sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    let sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       return {
@@ -782,7 +697,7 @@ async function createProxyConfig(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeJsonToBlob(blobServiceClient, blobPath, sessionData)
+    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,
@@ -818,10 +733,10 @@ async function getProxyConfigs(params) {
     console.log(`Getting proxy configs for user: ${userId}, session: ${sessionId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
-    const sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       return {
@@ -864,10 +779,10 @@ async function updateProxyConfig(params) {
     console.log(`Updating proxy config for user: ${userId}, session: ${sessionId}, config: ${configId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
-    let sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    let sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       return {
@@ -902,7 +817,7 @@ async function updateProxyConfig(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeJsonToBlob(blobServiceClient, blobPath, sessionData)
+    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,
@@ -938,10 +853,10 @@ async function deleteProxyConfig(params) {
     console.log(`Deleting proxy config for user: ${userId}, session: ${sessionId}, config: ${configId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
-    let sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    let sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       return {
@@ -963,7 +878,7 @@ async function deleteProxyConfig(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeJsonToBlob(blobServiceClient, blobPath, sessionData)
+    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,
@@ -999,10 +914,10 @@ async function getSession(params) {
     console.log(`Getting session data for user: ${userId}, session: ${sessionId}`)
     
     // Load session data from Azure Blob Storage
-    const blobServiceClient = getBlobServiceClient(params)
+    const blobServiceClient = createBlobServiceClient(params)
     const blobPath = getSessionBlobPath(userId, sessionId)
     
-    const sessionData = await readJsonFromBlob(blobServiceClient, blobPath)
+    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
     
     if (!sessionData) {
       return {
