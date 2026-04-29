@@ -1,7 +1,20 @@
 const fetch = require('node-fetch')
+const { ConfigError, getOrgConfig } = require('../shared/config')
 
 async function main(params) {
-  const { msClientId, msClientSecret, msTenantId } = getMicrosoftCredentials(params)
+  let msClientId
+  let msClientSecret
+  let msTenantId
+  try {
+    const credentials = getMicrosoftCredentials(params)
+    msClientId = credentials.msClientId
+    msClientSecret = credentials.msClientSecret
+    msTenantId = credentials.msTenantId
+  } catch (error) {
+    if (!(error instanceof ConfigError)) {
+      throw error
+    }
+  }
 
   // Validate required parameters
   if (!msClientId || !msClientSecret || !msTenantId) {
@@ -82,11 +95,7 @@ function getMicrosoftCredentials(params) {
     return {}
   }
 
-  return {
-    msClientId: params[`${environmentKey}_MS_CLIENT_ID`],
-    msClientSecret: params[`${environmentKey}_MS_CLIENT_SECRET`],
-    msTenantId: params[`${environmentKey}_MS_TENANT_ID`]
-  }
+  return getOrgConfig(params, environmentKey, 'microsoft-auth')
 }
 
 exports.main = main 

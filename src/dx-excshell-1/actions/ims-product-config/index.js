@@ -17,13 +17,25 @@
  * @param {boolean} params.testMode - Whether to run in test mode
  * @returns {object} Response from Adobe User Management API
  */
-async function main(params) {
-  const fetch = require('node-fetch')
+const fetch = require('node-fetch')
+const { ConfigError, getOrgConfig } = require('../shared/config')
 
+async function main(params) {
   try {
+    const resolvedConfig = resolveAdobeOrgConfig(params)
+    if (resolvedConfig.error) {
+      return resolvedConfig.error
+    }
+    const actionParams = {
+      ...params,
+      imsTenant: params.imsTenant || resolvedConfig.orgConfig?.tenant,
+      api_key: params.api_key || resolvedConfig.orgConfig?.apiKey,
+      ims_org: params.ims_org || resolvedConfig.orgConfig?.imsOrg
+    }
+
     // Validate required parameters
     const requiredParams = ['imsTenant', 'sandbox', 'api_key', 'ims_token', 'ims_org', 'groupName', 'productConfig', 'users']
-    const missingParams = requiredParams.filter(p => !params[p])
+    const missingParams = requiredParams.filter(p => !actionParams[p])
     if (missingParams.length > 0) {
       return {
         statusCode: 400,
@@ -35,33 +47,33 @@ async function main(params) {
 
     // Log parameters (excluding sensitive data)
     console.log('Calling ims-product-config action with params:', {
-      imsTenant: params.imsTenant,
-      sandbox: params.sandbox,
-      groupName: params.groupName,
-      productConfigCount: params.productConfig.length,
-      userCount: params.users.length,
-      testMode: params.testMode
+      imsTenant: actionParams.imsTenant,
+      sandbox: actionParams.sandbox,
+      groupName: actionParams.groupName,
+      productConfigCount: actionParams.productConfig.length,
+      userCount: actionParams.users.length,
+      testMode: actionParams.testMode
     })
 
-    if (params.testMode) {
+    if (actionParams.testMode) {
       console.log('Test mode enabled - would make the following API call:')
-      console.log('Endpoint:', `https://usermanagement.adobe.io/v2/usermanagement/action/${params.ims_org}`)
-      console.log('Product Configurations:', params.productConfig)
-      console.log('Users:', params.users)
+      console.log('Endpoint: Adobe User Management action endpoint')
+      console.log('Product Configurations:', actionParams.productConfig)
+      console.log('Users:', actionParams.users)
       return {
         statusCode: 200,
         body: {
           success: true,
           testMode: true,
           message: 'Test mode - no changes made',
-          productConfig: params.productConfig,
-          users: params.users
+          productConfig: actionParams.productConfig,
+          users: actionParams.users
         }
       }
     }
 
     // Prepare request body - create a command for each user
-    const requestBody = params.users.map(userEmail => ({
+    const requestBody = actionParams.users.map(userEmail => ({
       user: userEmail,
       requestID: `batch_${Date.now()}_${userEmail}`,
       do: [{
@@ -75,13 +87,13 @@ async function main(params) {
     console.log('Making request to Adobe User Management API with body:', JSON.stringify(requestBody, null, 2))
 
     // Make request to Adobe User Management API
-    const response = await fetch(`https://usermanagement.adobe.io/v2/usermanagement/action/${params.ims_org}`, {
+    const response = await fetch(`https://usermanagement.adobe.io/v2/usermanagement/action/${actionParams.ims_org}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'x-api-key': params.api_key,
-        'Authorization': `Bearer ${params.ims_token}`
+        'x-api-key': actionParams.api_key,
+        'Authorization': `Bearer ${actionParams.ims_token}`
       },
       body: JSON.stringify(requestBody)
     })
@@ -123,4 +135,29 @@ async function main(params) {
   }
 }
 
-exports.main = main 
+function resolveAdobeOrgConfig(params) {
+  const orgKey = params.environmentKey || params.org
+  if (!orgKey) {
+    return {}
+  }
+
+  try {
+    return {
+      orgConfig: getOrgConfig(params, orgKey, 'sandboxes')
+    }
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      return {
+        error: {
+          statusCode: 400,
+          body: {
+            error: error.message
+          }
+        }
+      }
+    }
+    throw error
+  }
+}
+
+exports.main = main

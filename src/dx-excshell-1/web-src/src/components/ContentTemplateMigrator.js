@@ -47,6 +47,7 @@ import Close from '@spectrum-icons/workflow/Close'
 import Copy from '@spectrum-icons/workflow/Copy'
 import Document from '@spectrum-icons/workflow/Document'
 import { getActionUrlFromRuntime } from '../utils/actionUrls'
+import { FALLBACK_ORGANIZATIONS, fetchOrganizationMetadata, organizationsToMap } from '../utils/orgConfig'
 
 const ContentTemplateMigrator = ({ runtime, ims }) => {
   const isMountedRef = useRef(true)
@@ -57,6 +58,7 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
   const [selectedSourceSandbox, setSelectedSourceSandbox] = useState('')
   const [selectedTargetOrg, setSelectedTargetOrg] = useState('')
   const [selectedTargetSandbox, setSelectedTargetSandbox] = useState('')
+  const [organizationOptions, setOrganizationOptions] = useState(FALLBACK_ORGANIZATIONS)
   
   // Sandbox data states
   const [sourceSandboxes, setSourceSandboxes] = useState([])
@@ -82,6 +84,7 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
   // Migration results
   const [migrationResults, setMigrationResults] = useState([])
   const [migrationStatus, setMigrationStatus] = useState('idle') // 'idle', 'in-progress', 'completed', 'error'
+  const environments = React.useMemo(() => organizationsToMap(organizationOptions), [organizationOptions])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -94,6 +97,19 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
       }
     }
   }, [])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    fetchOrganizationMetadata(runtime).then((organizations) => {
+      if (isCancelled || !isMountedRef.current) return
+      setOrganizationOptions(organizations)
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [runtime])
   
   // Fetch sandboxes when org changes
   useEffect(() => {
@@ -103,7 +119,7 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
     } else {
       setSourceSandboxes([])
     }
-  }, [selectedSourceOrg])
+  }, [selectedSourceOrg, environments])
   
   useEffect(() => {
     setSelectedTargetSandbox('')
@@ -112,24 +128,8 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
     } else {
       setTargetSandboxes([])
     }
-  }, [selectedTargetOrg])
+  }, [selectedTargetOrg, environments])
   
-  // Environment configurations (similar to UserManagement.js)
-  const environments = {
-    MA1HOL: {
-      environmentKey: 'MA1HOL',
-      name: 'MA1HOL',
-      tenant: 'adobedemoamericas275',
-      emailDomain: 'ma1.aephandsonlabs.com'
-    },
-    POT5HOL: {
-      environmentKey: 'POT5HOL',
-      name: 'POT5HOL',
-      tenant: 'adobeamericaspot5',
-      emailDomain: 'pot5.aephandsonlabs.com'
-    }
-  }
-
   // Utility functions
   const showNotification = (type, message) => {
     if (!isMountedRef.current) return
@@ -171,6 +171,14 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
 
       const result = await response.json()
       console.log('Sandbox API response:', result)
+
+      const actionError = result.error?.body?.error || result.body?.error || result.error
+      if (!response.ok || actionError) {
+        const errorMessage = typeof actionError === 'string' ? actionError : 'Failed to fetch sandboxes'
+        showNotification('error', errorMessage)
+        setStateIfMounted(setSandboxes, [])
+        return
+      }
       
       // Handle different possible response structures
       let sandboxData = []
@@ -1242,7 +1250,7 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
                           selectedKey={selectedSourceOrg}
                           onSelectionChange={setSelectedSourceOrg}
                           placeholder="Select Organization"
-                          items={Object.keys(environments).map(key => ({ key, label: key }))}
+                          items={organizationOptions}
                         >
                           {(item) => <Item key={item.key}>{item.label}</Item>}
                         </Picker>
@@ -1368,7 +1376,7 @@ const ContentTemplateMigrator = ({ runtime, ims }) => {
                           selectedKey={selectedTargetOrg}
                           onSelectionChange={setSelectedTargetOrg}
                           placeholder="Select Organization"
-                          items={Object.keys(environments).map(key => ({ key, label: key }))}
+                          items={organizationOptions}
                         >
                           {(item) => <Item key={item.key}>{item.label}</Item>}
                         </Picker>

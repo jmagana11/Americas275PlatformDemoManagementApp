@@ -1,30 +1,33 @@
 const fetch = require('node-fetch')
 const { Core } = require('@adobe/aio-sdk')
-const { errorResponse, stringParameters, checkMissingRequestInputs } = require('../utils')
+const { errorResponse, mergeJsonBodyParams, stringParameters, checkMissingRequestInputs } = require('../utils')
+const { ConfigError, getOrgConfig, listOrgMetadata } = require('../shared/config')
+const { safeStringify } = require('../shared/redaction')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
+  const requestParams = mergeJsonBodyParams(params)
   // create a Logger
-  const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
+  const logger = Core.Logger('main', { level: requestParams.LOG_LEVEL || 'info' })
 
   try {
     // 'info' is the default level if not set
     logger.info('Calling the main action')
 
     // log parameters, only if params.LOG_LEVEL === 'debug'
-    logger.debug(stringParameters(params))
+    logger.debug(stringParameters(requestParams))
 
     // check for missing request input parameters and headers
     const requiredParams = ['action']
     const requiredHeaders = []
-    const errorMessage = checkMissingRequestInputs(params, requiredParams, requiredHeaders)
+    const errorMessage = checkMissingRequestInputs(requestParams, requiredParams, requiredHeaders)
     if (errorMessage) {
       // return and log client errors
       return errorResponse(400, errorMessage, logger)
     }
 
-    const { action, ...actionParams } = params
-    logger.info(`Action called: ${action} with params:`, JSON.stringify(actionParams, null, 2))
+    const { action, ...actionParams } = requestParams
+    logger.info(`Action called: ${action} with params:`, safeStringify(actionParams))
 
     switch (action) {
       case 'list-templates':
@@ -54,14 +57,8 @@ async function listTemplates(params, logger) {
   }
 
   try {
-    // Organization-specific configurations
-    const orgConfigs = getContentOrgConfigs(params)
-
-    const orgConfig = orgConfigs[org]
-    
-    if (!orgConfig) {
-      return errorResponse(400, `Invalid organization: ${org}`, logger)
-    }
+    const { orgConfig, error } = getContentOrgConfig(params, org, `Invalid organization: ${org}`, logger)
+    if (error) return error
 
     // Get access token for the specified environment
     const accessToken = await getAccessToken(orgConfig, logger)
@@ -113,7 +110,7 @@ async function listTemplates(params, logger) {
 }
 
 async function getTemplate(params, logger) {
-  logger.info('getTemplate called with params:', JSON.stringify(params, null, 2))
+  logger.info('getTemplate called with params:', safeStringify(params))
   const { org, sandbox, templateId } = params
   
   if (!org || !sandbox || !templateId) {
@@ -122,14 +119,8 @@ async function getTemplate(params, logger) {
   }
 
   try {
-    // Organization-specific configurations
-    const orgConfigs = getContentOrgConfigs(params)
-
-    const orgConfig = orgConfigs[org]
-    
-    if (!orgConfig) {
-      return errorResponse(400, `Invalid organization: ${org}`, logger)
-    }
+    const { orgConfig, error } = getContentOrgConfig(params, org, `Invalid organization: ${org}`, logger)
+    if (error) return error
 
     // Get access token for the specified environment
     const accessToken = await getAccessToken(orgConfig, logger)
@@ -200,14 +191,8 @@ async function createTemplate(params, logger) {
   }
 
   try {
-    // Organization-specific configurations
-    const orgConfigs = getContentOrgConfigs(params)
-
-    const targetOrgConfig = orgConfigs[targetOrg]
-    
-    if (!targetOrgConfig) {
-      return errorResponse(400, `Invalid target organization: ${targetOrg}`, logger)
-    }
+    const { orgConfig: targetOrgConfig, error } = getContentOrgConfig(params, targetOrg, `Invalid target organization: ${targetOrg}`, logger)
+    if (error) return error
 
     // Get access token for the target environment
     const targetAccessToken = await getAccessToken(targetOrgConfig, logger)
@@ -294,7 +279,7 @@ async function createTemplate(params, logger) {
 }
 
 async function migrateTemplates(params, logger) {
-  logger.info('migrateTemplates called with params:', JSON.stringify(params, null, 2))
+  logger.info('migrateTemplates called with params:', safeStringify(params))
   const { 
     sourceOrg, 
     sourceSandbox, 
@@ -309,19 +294,10 @@ async function migrateTemplates(params, logger) {
   }
 
   try {
-    // Organization-specific configurations
-    const orgConfigs = getContentOrgConfigs(params)
-
-    const sourceOrgConfig = orgConfigs[sourceOrg]
-    const targetOrgConfig = orgConfigs[targetOrg]
-    
-    if (!sourceOrgConfig) {
-      return errorResponse(400, `Invalid source organization: ${sourceOrg}`, logger)
-    }
-    
-    if (!targetOrgConfig) {
-      return errorResponse(400, `Invalid target organization: ${targetOrg}`, logger)
-    }
+    const { orgConfig: sourceOrgConfig, error: sourceConfigError } = getContentOrgConfig(params, sourceOrg, `Invalid source organization: ${sourceOrg}`, logger)
+    if (sourceConfigError) return sourceConfigError
+    const { orgConfig: targetOrgConfig, error: targetConfigError } = getContentOrgConfig(params, targetOrg, `Invalid target organization: ${targetOrg}`, logger)
+    if (targetConfigError) return targetConfigError
 
     // Get access tokens for both environments
     const sourceAccessToken = await getAccessToken(sourceOrgConfig, logger)
@@ -493,24 +469,22 @@ async function getAccessToken(orgConfig, logger) {
   }
 }
 
-function getContentOrgConfigs(params) {
-  return {
-    MA1HOL: {
-      CLIENT_SECRET: params.MA1HOL_CLIENT_SECRET,
-      API_KEY: params.MA1HOL_API_KEY,
-      IMS_ORG: params.MA1HOL_IMS_ORG,
-      TENANT: params.MA1HOL_TENANT,
-      META_SCOPE: 'additional_info.job_function,openid,session,user_management_sdk,cjm.suppression_service.client.delete,AdobeID,target_sdk,read_organizations,additional_info.roles,cjm.suppression_service.client.all,additional_info.projectedProductContext',
-      IMS: 'ims-na1.adobelogin.com'
-    },
-    POT5HOL: {
-      CLIENT_SECRET: params.POT5HOL_CONTENT_CLIENT_SECRET || params.POT5HOL_CLIENT_SECRET,
-      API_KEY: params.POT5HOL_CONTENT_API_KEY || params.POT5HOL_API_KEY,
-      IMS_ORG: params.POT5HOL_IMS_ORG,
-      TENANT: params.POT5HOL_TENANT,
-      META_SCOPE: 'cjm.suppression_service.client.delete, cjm.suppression_service.client.all, openid, session, AdobeID, read_organizations, additional_info.projectedProductContext, read_pc.acp, read_pc, read_pc.dma_tartan, additional_info, target_sdk, additional_info.roles, additional_info.job_function, user_management_sdk',
-      IMS: 'ims-na1.adobelogin.com'
+function getContentOrgConfig(params, org, invalidMessage, logger) {
+  const selectedOrg = String(org || '').toUpperCase()
+  const knownOrg = listOrgMetadata(params).some((metadata) => metadata.orgKey === selectedOrg)
+  if (!knownOrg) {
+    return { error: errorResponse(400, invalidMessage, logger) }
+  }
+
+  try {
+    return {
+      orgConfig: getOrgConfig(params, selectedOrg, 'content-templates')
     }
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      return { error: errorResponse(500, error.message, logger) }
+    }
+    throw error
   }
 }
 

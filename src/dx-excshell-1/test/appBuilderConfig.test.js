@@ -6,6 +6,7 @@ const repoRoot = path.resolve(__dirname, '../../..')
 const extensionRoot = path.join(repoRoot, 'src/dx-excshell-1')
 const extConfigPath = path.join(extensionRoot, 'ext.config.yaml')
 const packageJsonPath = path.join(repoRoot, 'package.json')
+const webComponentsRoot = path.join(extensionRoot, 'web-src/src/components')
 
 function getDeclaredActions() {
   const config = fs.readFileSync(extConfigPath, 'utf8')
@@ -110,5 +111,20 @@ describe('App Builder configuration safety', () => {
     expect(config).not.toContain('$CAMPAIGN_TRIGGER_IMS_ORG')
     expect(config).toContain('CAMPAIGN_TRIGGER_SCOPE: $CAMPAIGN_TRIGGER_SCOPE')
     expect(config).toContain('CAMPAIGN_TRIGGER_SANDBOX: $CAMPAIGN_TRIGGER_SANDBOX')
+  })
+
+  test('uses the shared frontend org metadata utility in M8 screens', () => {
+    const screens = [
+      'UserManagement.js',
+      'ContentTemplateMigrator.js',
+      'SegmentRefresh.js'
+    ]
+
+    for (const screen of screens) {
+      const source = fs.readFileSync(path.join(webComponentsRoot, screen), 'utf8')
+      expect(source).toContain("../utils/orgConfig")
+      expect(source).not.toMatch(/const\s+environments\s*=\s*\{\s*MA1HOL/)
+      expect(source).not.toMatch(/const\s+orgOptions\s*=\s*\[\s*\{\s*key:\s*'MA1HOL'/)
+    }
   })
 })

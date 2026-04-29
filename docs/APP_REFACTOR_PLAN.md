@@ -292,6 +292,8 @@ Acceptance criteria:
 
 ### M8: Organization-Specific Adobe/Microsoft Config Cluster
 
+Status: Completed locally on 2026-04-29.
+
 Goal: Make User Management, Content Migrator, Segment Refresh org selection, and org sandboxes use one config model.
 
 Current candidate files:
@@ -320,6 +322,15 @@ Acceptance criteria:
 - Existing MA1HOL/POT5HOL UI flows work.
 - Adding a third org requires config only, not changes in multiple components/actions.
 - Content-template override env vars remain supported as aliases.
+
+Completed implementation:
+- Extended `actions/shared/config.js` with org key discovery, org metadata, capability-specific config checks, IMS-org lookup, sandbox capability support, Microsoft token-only capability support, and content-template alias fallback.
+- Migrated `adobe-auth`, `microsoft-auth`, `get-org-sandboxes`, `content-templates`, `getsandboxes`, and `ims-product-config` to the shared org resolver while preserving action names, routes, annotations, Runtime kind, and web action URLs.
+- Added `get-org-sandboxes` `list-orgs` support so frontend screens can load non-secret org metadata from the backend.
+- Added `web-src/src/utils/orgConfig.js` and moved User Management, Content Template Migrator, and Segment Refresh org picker metadata to that shared frontend utility with MA1HOL/POT5HOL fallbacks.
+- Kept MA1HOL/POT5HOL selected values and visible labels stable, including Segment Refresh's longer labels.
+- Added focused Jest coverage for org discovery, metadata redaction, capability checks, sandbox lookup, auth actions, content-template override resolution, and frontend wiring.
+- Automated tests and build passed; frontend smoke was left for manual user execution.
 
 ### M9: AI Tooling Helper Cluster
 
@@ -676,14 +687,14 @@ Completed:
 - M2: Shared Azure Blob helper and API Monitor/webhook receiver migration.
 - M3: API Monitor inbound webhook correctness with event-per-blob storage and stable UI selection.
 - M4: API Monitor, API Proxy, and session-manager storage schema alignment.
+- M8: Org-specific Adobe/Microsoft config cluster with backend org metadata and shared frontend org options.
 
 Next recommended sequence:
-1. M8: Org-specific config cluster.
-2. M7: AEP backend helper cluster.
-3. M5 and M6: Frontend registry and access control cleanup.
-4. M9, M10, M11: Tool-specific cleanup.
-5. M12: Smoke automation expansion.
-6. M13: Auth hardening and Runtime upgrade.
+1. M7: AEP backend helper cluster.
+2. M5 and M6: Frontend registry and access control cleanup.
+3. M9, M10, M11: Tool-specific cleanup.
+4. M12: Smoke automation expansion.
+5. M13: Auth hardening and Runtime upgrade.
 
 ## Change Log Rule
 

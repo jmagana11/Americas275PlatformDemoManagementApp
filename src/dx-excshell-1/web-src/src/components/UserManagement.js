@@ -38,6 +38,7 @@ import Settings from '@spectrum-icons/workflow/Settings'
 import Copy from '@spectrum-icons/workflow/Copy'
 import Refresh from '@spectrum-icons/workflow/Refresh'
 import { getActionUrlFromRuntime } from '../utils/actionUrls'
+import { FALLBACK_ORGANIZATIONS, fetchOrganizationMetadata, organizationsToMap } from '../utils/orgConfig'
 
 const UserManagement = ({ runtime, ims }) => {
   // State management
@@ -48,6 +49,7 @@ const UserManagement = ({ runtime, ims }) => {
   // Environment Configuration
   const [selectedEnvironment, setSelectedEnvironment] = useState('MA1HOL')
   const [sandboxName, setSandboxName] = useState('')
+  const [organizationOptions, setOrganizationOptions] = useState(FALLBACK_ORGANIZATIONS)
   
   // Authentication tokens
   const [imsToken, setImsToken] = useState('')
@@ -101,25 +103,10 @@ const UserManagement = ({ runtime, ims }) => {
   // Expired token dialog state
   const [isExpiredTokenDialogOpen, setIsExpiredTokenDialogOpen] = useState(false)
   
-  // Environment configurations
-  const environments = {
-    MA1HOL: {
-      environmentKey: 'MA1HOL',
-      name: 'MA1HOL',
-      tenant: 'adobedemoamericas275',
-      emailDomain: 'ma1.aephandsonlabs.com',
-      msAppRoleId: 'eacc6a31-fab3-498f-ab86-40691558a214',
-      msAppResId: 'cf7a5d82-dc58-43c4-87ab-2d0cc8492f11'
-    },
-    POT5HOL: {
-      environmentKey: 'POT5HOL',
-      name: 'POT5HOL',
-      tenant: 'adobeamericaspot5',
-      emailDomain: 'pot5.aephandsonlabs.com',
-      msAppRoleId: 'eacc6a31-fab3-498f-ab86-40691558a214',
-      msAppResId: '2078824c-fe4d-494e-a958-8df76a9035ab'
-    }
-  }
+  const environments = React.useMemo(() => organizationsToMap(organizationOptions), [organizationOptions])
+  const getSelectedEnvironmentConfig = React.useCallback(() => {
+    return environments[selectedEnvironment] || organizationOptions[0] || {}
+  }, [environments, organizationOptions, selectedEnvironment])
 
   // Utility functions
   const showNotification = React.useCallback((type, message) => {
@@ -135,6 +122,24 @@ const UserManagement = ({ runtime, ims }) => {
     // Keep track of timeouts for cleanup
     timeoutsRef.current.push(timeoutId)
   }, [])
+
+  React.useEffect(() => {
+    let isCancelled = false
+
+    fetchOrganizationMetadata(runtime).then((organizations) => {
+      if (isCancelled || !isMountedRef.current) return
+      setOrganizationOptions(organizations)
+      setSelectedEnvironment((currentEnvironment) => (
+        organizations.some((org) => org.key === currentEnvironment)
+          ? currentEnvironment
+          : organizations[0]?.key || 'MA1HOL'
+      ))
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [runtime])
 
   const copyToClipboard = async (text) => {
     try {
@@ -480,7 +485,7 @@ const UserManagement = ({ runtime, ims }) => {
     if (!checkSessionRequired()) return
     
     try {
-      const env = environments[selectedEnvironment]
+      const env = getSelectedEnvironmentConfig()
       console.log('Authenticating with environment:', selectedEnvironment)
       
       const response = await fetch(getActionUrlFromRuntime('adobe-auth', runtime), {
@@ -608,7 +613,7 @@ const UserManagement = ({ runtime, ims }) => {
 
     setIsProcessing(true)
     try {
-      const env = environments[selectedEnvironment]
+      const env = getSelectedEnvironmentConfig()
       const requestData = {
         msft_token: msftToken,
         imsTenant: env.tenant,
@@ -691,7 +696,7 @@ const UserManagement = ({ runtime, ims }) => {
 
     setIsProcessing(true)
     try {
-      const env = environments[selectedEnvironment]
+      const env = getSelectedEnvironmentConfig()
       const requestData = {
         msft_token: msftToken,
         imsTenant: env.tenant,
@@ -770,7 +775,7 @@ const UserManagement = ({ runtime, ims }) => {
 
     setIsProcessing(true)
     try {
-      const env = environments[selectedEnvironment]
+      const env = getSelectedEnvironmentConfig()
       const requestData = {
         msft_token: msftToken,
         imsTenant: env.tenant,
@@ -1086,9 +1091,9 @@ const UserManagement = ({ runtime, ims }) => {
                     onSelectionChange={setSelectedEnvironment}
                     width="size-3000"
                     label="Environment"
+                    items={organizationOptions}
                   >
-                    <Item key="MA1HOL">MA1HOL</Item>
-                    <Item key="POT5HOL">POT5HOL</Item>
+                    {(item) => <Item key={item.key}>{item.label}</Item>}
                   </Picker>
                   <TextField
                     value={sandboxName}
@@ -1144,7 +1149,7 @@ const UserManagement = ({ runtime, ims }) => {
                     placeholder="Enter email prefix (e.g., hol11)"
                     label="Email Prefix"
                     width="size-3000"
-                    description={emailPrefix ? `Example: ${emailPrefix}u01@${environments[selectedEnvironment]?.emailDomain}` : 'Used to generate user email addresses'}
+                    description={emailPrefix && getSelectedEnvironmentConfig().emailDomain ? `Example: ${emailPrefix}u01@${getSelectedEnvironmentConfig().emailDomain}` : 'Used to generate user email addresses'}
                   />
                   <NumberField
                     label="Number of Users"

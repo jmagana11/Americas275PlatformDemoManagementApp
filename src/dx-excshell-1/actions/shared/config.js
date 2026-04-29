@@ -1,6 +1,31 @@
 const DEFAULT_CONTENT_SCOPE = 'additional_info.job_function,openid,session,user_management_sdk,cjm.suppression_service.client.delete,AdobeID,target_sdk,read_organizations,additional_info.roles,cjm.suppression_service.client.all,additional_info.projectedProductContext'
 const POT5HOL_CONTENT_SCOPE = 'cjm.suppression_service.client.delete, cjm.suppression_service.client.all, openid, session, AdobeID, read_organizations, additional_info.projectedProductContext, read_pc.acp, read_pc, read_pc.dma_tartan, additional_info, target_sdk, additional_info.roles, additional_info.job_function, user_management_sdk'
 const ADOBE_IMS_HOST = 'ims-na1.adobelogin.com'
+const ORG_CONFIG_SUFFIXES = Object.freeze([
+  'CONTENT_API_KEY',
+  'CONTENT_CLIENT_SECRET',
+  'API_KEY',
+  'CLIENT_SECRET',
+  'IMS_ORG',
+  'TENANT',
+  'EMAIL_DOMAIN',
+  'MS_CLIENT_ID',
+  'MS_CLIENT_SECRET',
+  'MS_TENANT_ID',
+  'MS_APP_ROLE_ID',
+  'MS_APP_RESOURCE_ID'
+])
+const ORG_CONFIG_PATTERN = new RegExp(`^([A-Z0-9]+)_(${ORG_CONFIG_SUFFIXES.join('|')})$`)
+const ORG_METADATA_DEFAULTS = Object.freeze({
+  MA1HOL: {
+    label: 'MA1HOL',
+    segmentRefreshLabel: 'MA1HOL - Americas 275 Demo'
+  },
+  POT5HOL: {
+    label: 'POT5HOL',
+    segmentRefreshLabel: 'POT5HOL - Americas POT5'
+  }
+})
 
 const RUNTIME_INPUT_KEYS = Object.freeze([
   'LOG_LEVEL',
@@ -197,6 +222,12 @@ function normalizeCapability(capability) {
   if (['content', 'content-template', 'content-templates', 'contenttemplates', 'ajo-content'].includes(value)) {
     return 'contentTemplates'
   }
+  if (['sandbox', 'sandboxes', 'aep-sandbox', 'aep-sandboxes', 'sandbox-list'].includes(value)) {
+    return 'sandboxes'
+  }
+  if (['microsoft-auth', 'ms-auth', 'graph-auth', 'microsoft-token'].includes(value)) {
+    return 'microsoftAuth'
+  }
   if (['microsoft', 'ms', 'graph', 'microsoft-graph'].includes(value)) {
     return 'microsoft'
   }
@@ -214,18 +245,58 @@ function getOrgField(params, orgKey, fieldName, aliases = []) {
   }
 }
 
-function getOrgConfig(params = {}, orgKey, capability) {
+function getOrgKeysFromParams(params = {}) {
+  const sourceKeys = [...new Set([
+    ...Object.keys(process.env || {}),
+    ...Object.keys(params || {})
+  ])]
+  const orgFieldCounts = sourceKeys.reduce((counts, key) => {
+    const match = key.match(ORG_CONFIG_PATTERN)
+    if (match) {
+      counts[match[1]] = counts[match[1]] || new Set()
+      counts[match[1]].add(match[2])
+    }
+    return counts
+  }, {})
+  const discoveredKeys = Object.entries(orgFieldCounts).reduce((keys, [key, fields]) => {
+    const hasOrgShape = fields.size > 1 && (
+      fields.has('IMS_ORG') ||
+      fields.has('TENANT') ||
+      fields.has('CLIENT_SECRET') ||
+      fields.has('MS_CLIENT_ID') ||
+      fields.has('MS_TENANT_ID')
+    )
+    if (hasOrgShape) {
+      keys.add(key)
+    }
+    return keys
+  }, new Set(Object.keys(ORG_METADATA_DEFAULTS)))
+
+  return [...discoveredKeys].sort((left, right) => {
+    const defaultOrder = Object.keys(ORG_METADATA_DEFAULTS)
+    const leftDefaultIndex = defaultOrder.indexOf(left)
+    const rightDefaultIndex = defaultOrder.indexOf(right)
+    if (leftDefaultIndex !== -1 || rightDefaultIndex !== -1) {
+      if (leftDefaultIndex === -1) return 1
+      if (rightDefaultIndex === -1) return -1
+      return leftDefaultIndex - rightDefaultIndex
+    }
+    return left.localeCompare(right)
+  })
+}
+
+function resolveOrgFields(params, orgKey, capability) {
   const normalizedOrgKey = normalizeOrgKey(orgKey)
   if (!normalizedOrgKey) {
     throw new ConfigError(['orgKey'], 'Organization config')
   }
 
   const normalizedCapability = normalizeCapability(capability)
-  const isPotContentConfig = normalizedOrgKey === 'POT5HOL' && normalizedCapability === 'contentTemplates'
-  const apiKey = isPotContentConfig
+  const isContentConfig = normalizedCapability === 'contentTemplates'
+  const apiKey = isContentConfig
     ? getOrgField(params, normalizedOrgKey, 'CONTENT_API_KEY', [`${normalizedOrgKey}_API_KEY`])
     : getOrgField(params, normalizedOrgKey, 'API_KEY')
-  const clientSecret = isPotContentConfig
+  const clientSecret = isContentConfig
     ? getOrgField(params, normalizedOrgKey, 'CONTENT_CLIENT_SECRET', [`${normalizedOrgKey}_CLIENT_SECRET`])
     : getOrgField(params, normalizedOrgKey, 'CLIENT_SECRET')
   const imsOrg = getOrgField(params, normalizedOrgKey, 'IMS_ORG')
@@ -236,17 +307,78 @@ function getOrgConfig(params = {}, orgKey, capability) {
   const msTenantId = getOrgField(params, normalizedOrgKey, 'MS_TENANT_ID')
   const msAppRoleId = resolveInput(params, 'MS_APP_ROLE_ID', [`${normalizedOrgKey}_MS_APP_ROLE_ID`])
   const msAppResourceId = getOrgField(params, normalizedOrgKey, 'MS_APP_RESOURCE_ID')
+  const contentApiKey = getOrgField(params, normalizedOrgKey, 'CONTENT_API_KEY', [`${normalizedOrgKey}_API_KEY`])
+  const contentClientSecret = getOrgField(params, normalizedOrgKey, 'CONTENT_CLIENT_SECRET', [`${normalizedOrgKey}_CLIENT_SECRET`])
 
   const requiredByCapability = {
     adobe: [apiKey, clientSecret],
     aep: [apiKey, imsOrg],
+    sandboxes: [apiKey, clientSecret, imsOrg, tenant],
     contentTemplates: [apiKey, clientSecret, imsOrg, tenant],
+    microsoftAuth: [msClientId, msClientSecret, msTenantId],
     microsoft: [msClientId, msClientSecret, msTenantId, msAppRoleId, msAppResourceId]
   }
 
-  throwIfMissing(requiredByCapability[normalizedCapability], `${normalizedOrgKey} ${normalizedCapability} config`)
+  return {
+    normalizedOrgKey,
+    normalizedCapability,
+    apiKey,
+    clientSecret,
+    imsOrg,
+    tenant,
+    emailDomain,
+    msClientId,
+    msClientSecret,
+    msTenantId,
+    msAppRoleId,
+    msAppResourceId,
+    contentApiKey,
+    contentClientSecret,
+    requiredValues: requiredByCapability[normalizedCapability] || requiredByCapability.adobe
+  }
+}
 
-  const metaScope = isPotContentConfig ? POT5HOL_CONTENT_SCOPE : DEFAULT_CONTENT_SCOPE
+function getMetaScope(params, orgKey, capability) {
+  const normalizedOrgKey = normalizeOrgKey(orgKey)
+  const normalizedCapability = normalizeCapability(capability)
+  const explicitScope = getOptionalInput(params, `${normalizedOrgKey}_META_SCOPE`)
+  if (explicitScope) {
+    return explicitScope
+  }
+  const explicitContentScope = getOptionalInput(params, `${normalizedOrgKey}_CONTENT_SCOPE`)
+  if (explicitContentScope && normalizedCapability === 'contentTemplates') {
+    return explicitContentScope
+  }
+  return normalizedOrgKey === 'POT5HOL' && ['contentTemplates', 'sandboxes'].includes(normalizedCapability)
+    ? POT5HOL_CONTENT_SCOPE
+    : DEFAULT_CONTENT_SCOPE
+}
+
+function hasAllValues(items) {
+  return asArray(items).every((item) => hasConfigValue(item && item.value))
+}
+
+function getOrgConfig(params = {}, orgKey, capability) {
+  const fields = resolveOrgFields(params, orgKey, capability)
+  const {
+    normalizedOrgKey,
+    normalizedCapability,
+    apiKey,
+    clientSecret,
+    imsOrg,
+    tenant,
+    emailDomain,
+    msClientId,
+    msClientSecret,
+    msTenantId,
+    msAppRoleId,
+    msAppResourceId,
+    requiredValues
+  } = fields
+
+  throwIfMissing(requiredValues, `${normalizedOrgKey} ${normalizedCapability} config`)
+
+  const metaScope = getMetaScope(params, normalizedOrgKey, normalizedCapability)
 
   return {
     orgKey: normalizedOrgKey,
@@ -276,6 +408,63 @@ function getOrgConfig(params = {}, orgKey, capability) {
     META_SCOPE: metaScope,
     IMS: ADOBE_IMS_HOST
   }
+}
+
+function getOrgMetadata(params = {}, orgKey) {
+  const fields = resolveOrgFields(params, orgKey, 'adobe')
+  const {
+    normalizedOrgKey,
+    apiKey,
+    clientSecret,
+    imsOrg,
+    tenant,
+    emailDomain,
+    msClientId,
+    msClientSecret,
+    msTenantId,
+    msAppRoleId,
+    msAppResourceId,
+    contentApiKey,
+    contentClientSecret
+  } = fields
+  const defaults = ORG_METADATA_DEFAULTS[normalizedOrgKey] || {}
+
+  return {
+    key: normalizedOrgKey,
+    orgKey: normalizedOrgKey,
+    environmentKey: normalizedOrgKey,
+    name: defaults.label || normalizedOrgKey,
+    label: defaults.label || normalizedOrgKey,
+    segmentRefreshLabel: defaults.segmentRefreshLabel || defaults.label || normalizedOrgKey,
+    tenant: tenant.value,
+    emailDomain: emailDomain.value,
+    msAppRoleId: msAppRoleId.value,
+    msAppResourceId: msAppResourceId.value,
+    msAppResId: msAppResourceId.value,
+    capabilities: {
+      adobe: hasAllValues([apiKey, clientSecret]),
+      aep: hasAllValues([apiKey, imsOrg]),
+      sandboxes: hasAllValues([apiKey, clientSecret, imsOrg, tenant]),
+      contentTemplates: hasAllValues([contentApiKey, contentClientSecret, imsOrg, tenant]),
+      microsoftAuth: hasAllValues([msClientId, msClientSecret, msTenantId]),
+      microsoft: hasAllValues([msClientId, msClientSecret, msTenantId, msAppRoleId, msAppResourceId])
+    }
+  }
+}
+
+function listOrgMetadata(params = {}) {
+  return getOrgKeysFromParams(params).map((orgKey) => getOrgMetadata(params, orgKey))
+}
+
+function getOrgConfigByImsOrg(params = {}, imsOrgId, capability = 'aep') {
+  for (const orgKey of getOrgKeysFromParams(params)) {
+    const imsOrg = getOrgField(params, orgKey, 'IMS_ORG')
+    if (imsOrg.value === imsOrgId) {
+      return getOrgConfig(params, orgKey, capability)
+    }
+  }
+
+  throw new ConfigError(['x-gw-ims-org-id'], 'Organization config')
 }
 
 function getCampaignTriggerConfig(params = {}) {
@@ -366,5 +555,9 @@ module.exports = {
   getDefaultAepConfig,
   getOptionalInput,
   getOrgConfig,
-  getRequiredInput
+  getOrgConfigByImsOrg,
+  getOrgKeysFromParams,
+  getOrgMetadata,
+  getRequiredInput,
+  listOrgMetadata
 }

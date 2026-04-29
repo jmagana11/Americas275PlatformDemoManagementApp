@@ -6,6 +6,9 @@ const {
   getCampaignTriggerConfig,
   getDefaultAepConfig,
   getOrgConfig,
+  getOrgConfigByImsOrg,
+  getOrgKeysFromParams,
+  listOrgMetadata,
   getRequiredInput
 } = require('../actions/shared/config')
 const { isRuntimeInjectedParam } = require('../actions/shared/redaction')
@@ -133,6 +136,102 @@ describe('Runtime config resolver', () => {
 
     expect(config.msAppRoleId).toBe('shared-role-id')
     expect(config.MS_APP_ROLE_ID).toBe('shared-role-id')
+  })
+
+  test('resolves Microsoft auth config without requiring graph role assignment fields', () => {
+    const config = getOrgConfig({
+      MA1HOL_MS_CLIENT_ID: 'ms-client-id',
+      MA1HOL_MS_CLIENT_SECRET: 'ms-client-secret',
+      MA1HOL_MS_TENANT_ID: 'ms-tenant-id'
+    }, 'MA1HOL', 'microsoft-auth')
+
+    expect(config).toMatchObject({
+      capability: 'microsoftAuth',
+      msClientId: 'ms-client-id',
+      msClientSecret: 'ms-client-secret',
+      msTenantId: 'ms-tenant-id'
+    })
+  })
+
+  test('discovers org keys from Runtime-style org config inputs', () => {
+    expect(getOrgKeysFromParams({
+      MA1HOL_API_KEY: 'ma1-api-key',
+      POT5HOL_API_KEY: 'pot5-api-key',
+      NEWORG_API_KEY: 'new-api-key',
+      NEWORG_IMS_ORG: 'new-ims-org',
+      AEP_API_KEY: 'global-aep-api-key',
+      JMETER_API_KEY: 'jmeter-api-key',
+      SERVICE_API_KEY: 'service-api-key'
+    })).toEqual(['MA1HOL', 'POT5HOL', 'NEWORG'])
+  })
+
+  test('lists non-secret org metadata with capability flags', () => {
+    const organizations = listOrgMetadata({
+      MA1HOL_API_KEY: 'ma1-api-key',
+      MA1HOL_CLIENT_SECRET: 'ma1-secret',
+      MA1HOL_IMS_ORG: 'ma1-ims-org',
+      MA1HOL_TENANT: 'ma1-tenant',
+      MA1HOL_EMAIL_DOMAIN: 'ma1.example.test',
+      MA1HOL_MS_CLIENT_ID: 'ma1-ms-client',
+      MA1HOL_MS_CLIENT_SECRET: 'ma1-ms-secret',
+      MA1HOL_MS_TENANT_ID: 'ma1-ms-tenant',
+      MA1HOL_MS_APP_RESOURCE_ID: 'ma1-ms-resource',
+      MS_APP_ROLE_ID: 'shared-role-id'
+    })
+
+    const ma1hol = organizations.find((org) => org.key === 'MA1HOL')
+    expect(ma1hol).toMatchObject({
+      key: 'MA1HOL',
+      label: 'MA1HOL',
+      segmentRefreshLabel: 'MA1HOL - Americas 275 Demo',
+      tenant: 'ma1-tenant',
+      emailDomain: 'ma1.example.test',
+      capabilities: {
+        adobe: true,
+        sandboxes: true,
+        contentTemplates: true,
+        microsoftAuth: true,
+        microsoft: true
+      }
+    })
+    expect(ma1hol).not.toHaveProperty('apiKey')
+    expect(ma1hol).not.toHaveProperty('clientSecret')
+    expect(JSON.stringify(ma1hol)).not.toContain('ma1-secret')
+    expect(JSON.stringify(ma1hol)).not.toContain('ma1-api-key')
+  })
+
+  test('requires sandbox config without echoing configured values', () => {
+    expect(() => getOrgConfig({
+      MA1HOL_API_KEY: 'ma1-api-key',
+      MA1HOL_CLIENT_SECRET: 'ma1-secret'
+    }, 'MA1HOL', 'sandboxes')).toThrow(ConfigError)
+
+    try {
+      getOrgConfig({
+        MA1HOL_API_KEY: 'ma1-api-key',
+        MA1HOL_CLIENT_SECRET: 'ma1-secret'
+      }, 'MA1HOL', 'sandboxes')
+      throw new Error('Expected config resolution to fail')
+    } catch (error) {
+      expect(error.missingKeys).toEqual(['MA1HOL_IMS_ORG', 'MA1HOL_TENANT'])
+      expect(error.message).not.toContain('ma1-api-key')
+      expect(error.message).not.toContain('ma1-secret')
+    }
+  })
+
+  test('resolves org config by IMS org without exposing unmatched IMS values', () => {
+    const config = getOrgConfigByImsOrg({
+      MA1HOL_API_KEY: 'ma1-api-key',
+      MA1HOL_IMS_ORG: 'ma1-ims-org'
+    }, 'ma1-ims-org', 'aep')
+
+    expect(config).toMatchObject({
+      orgKey: 'MA1HOL',
+      apiKey: 'ma1-api-key',
+      imsOrg: 'ma1-ims-org'
+    })
+
+    expect(() => getOrgConfigByImsOrg({}, 'unknown-ims-org', 'aep')).toThrow(ConfigError)
   })
 
   test('resolves campaign trigger Adobe credentials from canonical MA1HOL inputs', () => {

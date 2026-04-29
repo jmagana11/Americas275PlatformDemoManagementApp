@@ -17,6 +17,7 @@
 const fetch = require('node-fetch')
 const { Core } = require('@adobe/aio-sdk')
 const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs } = require('../utils')
+const { ConfigError, getOrgConfigByImsOrg } = require('../shared/config')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main(params) {
@@ -51,37 +52,14 @@ async function main(params) {
       return errorResponse(400, 'Missing x-gw-ims-org-id header', logger)
     }
 
-    // Organization-specific environment configurations
-    const environmentList = [
-      {
-        name: 'MA1HOL',
-        tenant: 'adobedemoamericas275',
-        emailDomain: 'ma1.aephandsonlabs.com',
-        imsOrg: params.MA1HOL_IMS_ORG,
-        apiKey: params.MA1HOL_API_KEY
-      },
-      {
-        name: 'POT5HOL',
-        tenant: 'adobeamericaspot5',
-        emailDomain: 'pot5.aephandsonlabs.com',
-        imsOrg: params.POT5HOL_IMS_ORG,
-        apiKey: params.POT5HOL_API_KEY
+    let environment
+    try {
+      environment = getOrgConfigByImsOrg(params, imsOrgId, 'aep')
+    } catch (error) {
+      if (error instanceof ConfigError) {
+        return errorResponse(error.missingKeys.includes('x-gw-ims-org-id') ? 400 : 500, error.message, logger)
       }
-    ]
-    const environments = environmentList.reduce((configs, environment) => {
-      if (environment.imsOrg) {
-        configs[environment.imsOrg] = environment
-      }
-      return configs
-    }, {})
-
-    const environment = environments[imsOrgId]
-    if (!environment) {
-      return errorResponse(400, `Unsupported IMS organization: ${imsOrgId}`, logger)
-    }
-
-    if (!environment.apiKey) {
-      return errorResponse(500, `Missing API key configuration for ${environment.name}`, logger)
+      throw error
     }
 
     // Use the bearer token from the frontend for authentication

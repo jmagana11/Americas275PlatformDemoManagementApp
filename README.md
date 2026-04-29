@@ -14,6 +14,7 @@ The app is a React Spectrum single-page application running in Experience Cloud 
 - Documents API Monitor, API Proxy, and session-manager blob schemas in `docs/API_STORAGE_SCHEMA.md`.
 - Stores API Monitor inbound webhook events as individual Azure Blob JSON files under the session event prefix, while keeping the session JSON blob as a compatibility and summary record.
 - Resolves service credentials server-side through App Builder inputs/environment variables, not from frontend source.
+- Provides non-secret organization metadata from backend config so User Management, Content Template Migrator, and Segment Refresh share one org picker model.
 
 ## Architecture
 
@@ -38,6 +39,7 @@ Important pieces:
 - `components/SideBar.js` defines the main navigation groups.
 - `utils/actionUrls.js` centralizes Runtime action URL generation.
 - `utils/accessControl.js` gates protected screens by IMS/user context.
+- `utils/orgConfig.js` centralizes frontend org picker metadata and falls back to the current MA1HOL/POT5HOL labels if backend metadata cannot load.
 
 ### Backend Actions
 
@@ -90,6 +92,8 @@ src/dx-excshell-1/actions/shared/config.js
 ```
 
 The resolver prefers canonical env inputs and keeps older duplicate names as temporary aliases. App-owned duplicate credential env sources removed from `ext.config.yaml` include Campaign Trigger client/org credential inputs and per-org Microsoft app role ids.
+
+Organization-specific action config is resolved server-side through the same helper. `get-org-sandboxes` can return non-secret org metadata for frontend pickers, while Adobe/Microsoft credentials remain Runtime inputs only. `POT5HOL_CONTENT_*` content-template override inputs remain supported and fall back to base `POT5HOL_*` inputs.
 
 Shared Azure Blob helpers live in:
 

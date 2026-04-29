@@ -25,6 +25,7 @@ import {
     Divider
 } from '@adobe/react-spectrum'
 import { getActionUrlFromRuntime } from '../utils/actionUrls'
+import { FALLBACK_ORGANIZATIONS, fetchOrganizationMetadata } from '../utils/orgConfig'
 
 function SegmentRefresh({ runtime, ims }) {
     // Ref to track if component is mounted
@@ -36,6 +37,7 @@ function SegmentRefresh({ runtime, ims }) {
     const [selectedSandbox, setSelectedSandbox] = useState('')
     const [sandboxes, setSandboxes] = useState([])
     const [isLoadingSandboxes, setIsLoadingSandboxes] = useState(false)
+    const [organizationOptions, setOrganizationOptions] = useState(FALLBACK_ORGANIZATIONS)
     
     // State for segments
     const [segments, setSegments] = useState([])
@@ -51,11 +53,11 @@ function SegmentRefresh({ runtime, ims }) {
     // State for notifications
     const [notification, setNotification] = useState({ type: '', message: '' })
 
-    // Organization options and their corresponding IDs
-    const orgOptions = [
-        { key: 'MA1HOL', label: 'MA1HOL - Americas 275 Demo', id: 'MA1HOL' },
-        { key: 'POT5HOL', label: 'POT5HOL - Americas POT5', id: 'POT5HOL' }
-    ]
+    const orgOptions = organizationOptions.map(org => ({
+        key: org.key,
+        label: org.segmentRefreshLabel || org.label,
+        id: org.id || org.key
+    }))
 
     // Cleanup effect to prevent memory leaks
     useEffect(() => {
@@ -63,6 +65,19 @@ function SegmentRefresh({ runtime, ims }) {
             isMountedRef.current = false
         }
     }, [])
+
+    useEffect(() => {
+        let isCancelled = false
+
+        fetchOrganizationMetadata(runtime).then((organizations) => {
+            if (isCancelled || !isMountedRef.current) return
+            setOrganizationOptions(organizations)
+        })
+
+        return () => {
+            isCancelled = true
+        }
+    }, [runtime])
 
     // Helper function to show notifications
     const showNotification = (type, message) => {

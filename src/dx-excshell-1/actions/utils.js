@@ -98,6 +98,39 @@ function getBearerToken (params) {
   }
   return undefined
 }
+
+function parseJsonBodyValue(body) {
+  if (!body) {
+    return {}
+  }
+  if (typeof body === 'object') {
+    return body
+  }
+  if (typeof body !== 'string') {
+    return {}
+  }
+
+  try {
+    return JSON.parse(body)
+  } catch (error) {
+    try {
+      return JSON.parse(Buffer.from(body, 'base64').toString('utf8'))
+    } catch (base64Error) {
+      return {}
+    }
+  }
+}
+
+function mergeJsonBodyParams(params = {}) {
+  const bodyParams = {
+    ...parseJsonBodyValue(params.body),
+    ...parseJsonBodyValue(params.__ow_body)
+  }
+  return {
+    ...bodyParams,
+    ...params
+  }
+}
 /**
  *
  * Returns an error response object and attempts to log.info the status code and error message
@@ -129,6 +162,7 @@ function errorResponse (statusCode, message, logger) {
 module.exports = {
   errorResponse,
   getBearerToken,
+  mergeJsonBodyParams,
   stringParameters,
   checkMissingRequestInputs
 }

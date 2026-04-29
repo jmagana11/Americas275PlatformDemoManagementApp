@@ -27,6 +27,68 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-04-29 - M8 Organization Config Cluster
+
+Branch: `codex/m8-org-config`
+
+Milestone: M8 - Organization-Specific Adobe/Microsoft Config Cluster
+
+Intent:
+- Build on the M1 Runtime config resolver so User Management, Content Template Migrator, Segment Refresh sandbox loading, and org-aware auth/content actions use one backend org model.
+- Keep existing MA1HOL/POT5HOL frontend selected values and visible labels unchanged.
+- Preserve content-template credential override behavior for `POT5HOL_CONTENT_*` while falling back to base `POT5HOL_*` inputs.
+- Avoid action name, route, Runtime kind, annotation, package-name, or web action URL changes.
+- Add focused tests for org metadata listing, capability-specific config checks, sandbox lookup, auth actions, content-template config resolution, and frontend org metadata wiring.
+
+Files changed:
+- `AGENT.md`
+- `README.md`
+- `docs/APP_REFACTOR_PLAN.md`
+- `docs/REFACTOR_CHANGE_LOG.md`
+- `src/dx-excshell-1/actions/shared/config.js`
+- `src/dx-excshell-1/actions/adobe-auth/index.js`
+- `src/dx-excshell-1/actions/microsoft-auth/index.js`
+- `src/dx-excshell-1/actions/get-org-sandboxes/index.js`
+- `src/dx-excshell-1/actions/content-templates/index.js`
+- `src/dx-excshell-1/actions/getsandboxes/index.js`
+- `src/dx-excshell-1/actions/ims-product-config/index.js`
+- `src/dx-excshell-1/actions/utils.js`
+- `src/dx-excshell-1/web-src/src/utils/orgConfig.js`
+- `src/dx-excshell-1/web-src/src/components/UserManagement.js`
+- `src/dx-excshell-1/web-src/src/components/ContentTemplateMigrator.js`
+- `src/dx-excshell-1/web-src/src/components/SegmentRefresh.js`
+- `src/dx-excshell-1/test/config.test.js`
+- `src/dx-excshell-1/test/orgConfigActions.test.js`
+- `src/dx-excshell-1/test/appBuilderConfig.test.js`
+- `src/dx-excshell-1/test/utils.test.js`
+
+Behavior impact:
+- Behavior-preserving M8 refactor for existing MA1HOL/POT5HOL workflows.
+- Added shared backend org key discovery, non-secret org metadata, capability-specific config checks, IMS-org lookup, sandbox capability support, and Microsoft token-only capability support.
+- Migrated org-aware auth, sandbox, content-template, and IMS product config actions to `actions/shared/config.js`.
+- `get-org-sandboxes` now supports `action: "list-orgs"` for non-secret frontend org metadata.
+- User Management, Content Template Migrator, and Segment Refresh now share `web-src/src/utils/orgConfig.js` for org picker metadata with MA1HOL/POT5HOL fallbacks.
+- `POT5HOL_CONTENT_*` content-template override inputs remain supported and fall back to base `POT5HOL_*` inputs.
+- Follow-up fix after manual smoke: `get-org-sandboxes` and `content-templates` now merge JSON request body fields with Runtime-injected params, so Content Template Migrator sandbox/template POST requests work whether App Builder flattens body fields or exposes `body`/`__ow_body`.
+- Follow-up fix after manual smoke: org discovery now ignores unrelated single-field global keys such as default AEP, JMeter, or service API keys instead of exposing them as pseudo-org picker entries.
+- Content Template Migrator sandbox loading now surfaces action error messages instead of showing only "No sandboxes found".
+- No action names, package names, web action URLs, route paths, Runtime annotations, `require-adobe-auth` values, Runtime kind, or credential channels changed.
+
+Verification:
+- Passed focused: `node node_modules/jest/bin/jest.js --passWithNoTests src/dx-excshell-1/test/config.test.js src/dx-excshell-1/test/orgConfigActions.test.js src/dx-excshell-1/test/appBuilderConfig.test.js --runInBand` - 3 suites, 29 tests.
+- Passed focused after sandbox follow-up: `node node_modules/jest/bin/jest.js --passWithNoTests src/dx-excshell-1/test/config.test.js src/dx-excshell-1/test/orgConfigActions.test.js src/dx-excshell-1/test/utils.test.js --runInBand` - 3 suites, 49 tests.
+- Passed after sandbox follow-up: `npm test -- --runInBand` - 15 suites, 113 tests.
+- Passed after sandbox follow-up: `aio app build` - built 39 actions and web assets.
+- Skipped with user approval: local `aio app run --open` UI smoke; user will run the M8 smoke test manually.
+
+Open questions:
+- Whether future org display labels should become non-secret Runtime inputs instead of code defaults.
+- Whether User Management postmirror endpoints should move behind App Builder actions in a separate milestone.
+
+Next recommended step:
+- Manual user smoke test for M8: verify User Management, Content Template Migrator, and Segment Refresh still show MA1HOL/POT5HOL org options, load sandboxes, and complete the touched auth/template/sandbox flows.
+- Proceed to M7: AEP backend helper cluster.
+
 ## 2026-04-29 - M4 API Monitor And API Proxy Storage Alignment
 
 Branch: `codex/m4-storage-alignment`

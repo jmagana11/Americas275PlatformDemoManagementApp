@@ -9,6 +9,7 @@ test('interface', () => {
   expect(typeof utils.stringParameters).toBe('function')
   expect(typeof utils.checkMissingRequestInputs).toBe('function')
   expect(typeof utils.getBearerToken).toBe('function')
+  expect(typeof utils.mergeJsonBodyParams).toBe('function')
 })
 
 describe('errorResponse', () => {
@@ -110,5 +111,34 @@ describe('getBearerToken', () => {
   })
   test('({ __ow_headers: { authorization: Bearer fake Bearer fake} })', () => {
     expect(utils.getBearerToken({ __ow_headers: { authorization: 'Bearer fake Bearer fake' } })).toEqual('fake Bearer fake')
+  })
+})
+
+describe('mergeJsonBodyParams', () => {
+  test('merges JSON body params while preserving top-level Runtime params', () => {
+    const params = utils.mergeJsonBodyParams({
+      body: JSON.stringify({
+        org: 'MA1HOL',
+        MA1HOL_API_KEY: 'body-api-key'
+      }),
+      MA1HOL_API_KEY: 'runtime-api-key',
+      LOG_LEVEL: 'debug'
+    })
+
+    expect(params).toMatchObject({
+      org: 'MA1HOL',
+      MA1HOL_API_KEY: 'runtime-api-key',
+      LOG_LEVEL: 'debug'
+    })
+  })
+
+  test('merges JSON __ow_body params', () => {
+    expect(utils.mergeJsonBodyParams({
+      __ow_body: JSON.stringify({
+        action: 'list-orgs'
+      })
+    })).toMatchObject({
+      action: 'list-orgs'
+    })
   })
 })

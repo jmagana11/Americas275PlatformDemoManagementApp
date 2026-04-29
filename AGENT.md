@@ -20,6 +20,7 @@ This file gives future agent sessions enough context to work safely without re-l
 - M2 is complete locally: shared Azure Blob helper, JSON read/write helpers, not-found handling, metadata normalization, prefix list/delete support, and API Monitor/webhook receiver helper migration.
 - M3 is complete locally: API Monitor inbound webhooks now use per-event blobs with shared session lookup, deterministic read/clear behavior, stable UI row keys, and visible live refresh.
 - M4 is complete locally: API Monitor, API Proxy, and session-manager storage paths are documented, new/re-written session records use `storageSchemaVersion: 1`, and all three areas use shared schema/path normalization helpers while preserving existing blob paths.
+- M8 is complete locally: User Management, Content Template Migrator, Segment Refresh sandbox org pickers, org-aware auth actions, content templates, and sandbox lookups use the shared org config model and non-secret org metadata endpoint.
 
 ## Non-Negotiables
 
@@ -72,7 +73,8 @@ docs/REFACTOR_CHANGE_LOG.md
    - M1 added `actions/shared/config.js` and centralized app-owned duplicate env sources found during the local audit.
    - Campaign Trigger now uses canonical `MA1HOL_API_KEY`, `MA1HOL_CLIENT_SECRET`, and `MA1HOL_IMS_ORG`; trigger-specific credential env names remain resolver aliases only.
    - Microsoft Graph app role id now uses one `MS_APP_ROLE_ID`; per-org role id names remain resolver aliases only.
-   - Remaining work is migrating more action clusters to the resolver and deciding whether local-only/generated env aliases should be cleaned outside source.
+   - M8 added org metadata discovery and capability checks used by User Management, Content Template Migrator, Segment Refresh sandbox loading, `adobe-auth`, `microsoft-auth`, `get-org-sandboxes`, `content-templates`, `getsandboxes`, and `ims-product-config`.
+   - Remaining work is migrating non-org clusters to the resolver and deciding whether local-only/generated env aliases should be cleaned outside source.
 
 2. API Monitor inbound webhook reliability:
    - M3 moved inbound webhook events to per-event blobs under `api-monitor/events/<sessionId>/webhooks/`.
@@ -152,4 +154,4 @@ aio app build
 
 ## Suggested First Follow-Up
 
-Start with Milestone M8 in `docs/APP_REFACTOR_PLAN.md`: organization-specific Adobe/Microsoft config cluster. M7 remains the next high-value backend helper cluster after the org config model is stable.
+Start with Milestone M7 in `docs/APP_REFACTOR_PLAN.md`: AEP backend helper cluster. M8 is complete locally, so M7 is now the next high-value backend helper cluster.

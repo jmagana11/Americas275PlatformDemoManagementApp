@@ -1,4 +1,5 @@
 const fetch = require('node-fetch')
+const { ConfigError, getOrgConfig } = require('../shared/config')
 
 function getAdobeCredentials(params) {
   if (params.apiKey && params.clientSecret) {
@@ -13,14 +14,21 @@ function getAdobeCredentials(params) {
     return {}
   }
 
-  return {
-    apiKey: params[`${environmentKey}_API_KEY`],
-    clientSecret: params[`${environmentKey}_CLIENT_SECRET`]
-  }
+  return getOrgConfig(params, environmentKey, 'adobe')
 }
 
 async function main(params) {
-  const { apiKey, clientSecret } = getAdobeCredentials(params)
+  let apiKey
+  let clientSecret
+  try {
+    const credentials = getAdobeCredentials(params)
+    apiKey = credentials.apiKey
+    clientSecret = credentials.clientSecret
+  } catch (error) {
+    if (!(error instanceof ConfigError)) {
+      throw error
+    }
+  }
 
   // Validate required parameters
   if (!apiKey || !clientSecret) {
