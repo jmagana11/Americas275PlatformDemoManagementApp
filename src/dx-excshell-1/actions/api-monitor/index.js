@@ -11,14 +11,16 @@ const axios = require('axios')
 const { v4: uuidv4 } = require('uuid')
 const {
   createBlobServiceClient,
-  readJsonBlob,
-  writeJsonBlob
+  readJsonBlob
 } = require('../shared/blobStore')
+const {
+  clearWebhookEvents,
+  findMonitorSession,
+  getSessionBlobPath,
+  listWebhookEvents,
+  writeMonitorSession
+} = require('../shared/apiMonitorStore')
 const { redactObject, redactValue, safeStringify } = require('../shared/redaction')
-
-const SESSION_BLOB_METADATA = Object.freeze({
-  purpose: 'api-monitor-session-data'
-})
 
 // Helper function to get IMS user identifier
 function getUserIdentifier(headers) {
@@ -50,17 +52,6 @@ function getUserIdentifier(headers) {
   // Fallback to a default identifier
   console.log('Using default user identifier')
   return 'default_user'
-}
-
-// Helper function to get blob path for session data
-function getSessionBlobPath(userId, sessionId) {
-  return `api-monitor/DO_NOT_DELETE_APPBUILDER_${userId}_${sessionId}.json`
-}
-
-function writeSessionJsonBlob(blobServiceClient, blobPath, data) {
-  return writeJsonBlob(blobServiceClient, blobPath, data, {
-    metadata: SESSION_BLOB_METADATA
-  })
 }
 
 // main function that will be executed by Adobe I/O Runtime
@@ -164,7 +155,7 @@ async function createSession(params) {
     const blobPath = getSessionBlobPath(userId, sessionId)
     
     console.log('Writing to blob storage...')
-    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
+    await writeMonitorSession(blobServiceClient, blobPath, sessionData)
     
     console.log(`Session created: ${sessionId} for user: ${userId}`)
     
@@ -332,7 +323,7 @@ async function proxyRequest(params) {
           console.log(`No latest session data found, using original session data`)
         }
         
-        await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
+        await writeMonitorSession(blobServiceClient, blobPath, sessionData)
         console.log(`Successfully saved session data on attempt ${saveAttempts + 1}`)
         break
         
@@ -483,7 +474,7 @@ async function clearLogs(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
+    await writeMonitorSession(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,
@@ -517,42 +508,36 @@ async function getWebhookLogs(params) {
     
     console.log(`Getting webhook logs for user: ${userId}, session: ${sessionId}`)
     
-    // Load session data from Azure Blob Storage
     const blobServiceClient = createBlobServiceClient(params)
-    const blobPath = getSessionBlobPath(userId, sessionId)
+    const monitorSession = await findMonitorSession(blobServiceClient, sessionId, {
+      params,
+      userId
+    })
     
-    console.log(`Looking for session data at blob path: ${blobPath}`)
-    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
-    
-    if (sessionData) {
-      console.log(`Found session data. Webhook logs count: ${(sessionData.webhookLogs || []).length}`)
-      console.log(`Session data structure:`, JSON.stringify({
-        session: sessionData.session,
-        requestLogsCount: (sessionData.requestLogs || []).length,
-        webhookLogsCount: (sessionData.webhookLogs || []).length
-      }, null, 2))
-    } else {
-      console.log('No session data found')
-    }
-    
-    if (!sessionData) {
+    if (!monitorSession) {
       return {
         statusCode: 404,
         body: { error: 'Session not found' }
       }
     }
     
-    // Return the most recent webhook logs (up to limit)
-    const webhooks = redactObject((sessionData.webhookLogs || []).slice(-limit).reverse())
+    const { events: webhooks, totalCount } = await listWebhookEvents(blobServiceClient, sessionId, {
+      sessionData: monitorSession.sessionData,
+      limit
+    })
+    const session = {
+      ...monitorSession.sessionData.session,
+      webhookCount: totalCount
+    }
     
     return {
       statusCode: 200,
       body: {
         success: true,
         sessionId,
-        session: sessionData.session,
+        session,
         webhooks,
-        totalCount: (sessionData.webhookLogs || []).length
+        totalCount
       }
     }
     
@@ -579,26 +564,20 @@ async function clearWebhookLogs(params) {
     
     console.log(`Clearing webhook logs for user: ${userId}, session: ${sessionId}`)
     
-    // Load session data from Azure Blob Storage
     const blobServiceClient = createBlobServiceClient(params)
-    const blobPath = getSessionBlobPath(userId, sessionId)
+    const monitorSession = await findMonitorSession(blobServiceClient, sessionId, {
+      params,
+      userId
+    })
     
-    const sessionData = await readJsonBlob(blobServiceClient, blobPath)
-    
-    if (!sessionData) {
+    if (!monitorSession) {
       return {
         statusCode: 404,
         body: { error: 'Session not found' }
       }
     }
     
-    // Clear the webhook logs
-    sessionData.webhookLogs = []
-    sessionData.session.webhookCount = 0
-    sessionData.session.lastActivity = new Date().toISOString()
-    
-    // Save back to Azure Blob Storage
-    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
+    await clearWebhookEvents(blobServiceClient, monitorSession)
     
     return {
       statusCode: 200,
@@ -697,7 +676,7 @@ async function createProxyConfig(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
+    await writeMonitorSession(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,
@@ -817,7 +796,7 @@ async function updateProxyConfig(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
+    await writeMonitorSession(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,
@@ -878,7 +857,7 @@ async function deleteProxyConfig(params) {
     sessionData.session.lastActivity = new Date().toISOString()
     
     // Save back to Azure Blob Storage
-    await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
+    await writeMonitorSession(blobServiceClient, blobPath, sessionData)
     
     return {
       statusCode: 200,

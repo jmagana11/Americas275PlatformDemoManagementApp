@@ -7,8 +7,11 @@ const { BlobServiceClient } = require('@azure/storage-blob')
 const {
   createBlobServiceClient,
   createJsonBlobStore,
+  deleteBlobsByPrefix,
   isBlobNotFound,
+  listBlobsByPrefix,
   normalizeMetadata,
+  readJsonBlobsByPrefix,
   readJsonBlob,
   writeJsonBlob
 } = require('../actions/shared/blobStore')
@@ -20,15 +23,19 @@ function readableJson(value) {
 function createMockBlobClient() {
   const upload = jest.fn()
   const download = jest.fn()
-  const getBlockBlobClient = jest.fn(() => ({ upload, download }))
-  const getContainerClient = jest.fn(() => ({ getBlockBlobClient }))
+  const deleteIfExists = jest.fn()
+  const getBlockBlobClient = jest.fn(() => ({ upload, download, deleteIfExists }))
+  const listBlobsFlat = jest.fn(() => [])
+  const getContainerClient = jest.fn(() => ({ getBlockBlobClient, listBlobsFlat }))
   const blobServiceClient = { getContainerClient }
 
   return {
     blobServiceClient,
+    deleteIfExists,
     download,
     getBlockBlobClient,
     getContainerClient,
+    listBlobsFlat,
     upload
   }
 }
@@ -149,5 +156,54 @@ describe('shared Azure blob store helper', () => {
       m_1_starts_with_number: 'value',
       has_dash: 'value'
     })
+  })
+
+  test('lists and reads JSON blobs by prefix', async () => {
+    const mocks = createMockBlobClient()
+    mocks.listBlobsFlat.mockReturnValue([
+      { name: 'api-monitor/events/session/webhooks/a.json' },
+      { name: 'api-monitor/events/session/webhooks/b.json' }
+    ])
+    mocks.download
+      .mockResolvedValueOnce({ readableStreamBody: readableJson({ id: 'a' }) })
+      .mockResolvedValueOnce({ readableStreamBody: readableJson({ id: 'b' }) })
+
+    await expect(listBlobsByPrefix(mocks.blobServiceClient, 'api-monitor/events/session/webhooks/'))
+      .resolves.toEqual([
+        { name: 'api-monitor/events/session/webhooks/a.json' },
+        { name: 'api-monitor/events/session/webhooks/b.json' }
+      ])
+
+    await expect(readJsonBlobsByPrefix(mocks.blobServiceClient, 'api-monitor/events/session/webhooks/'))
+      .resolves.toEqual([
+        {
+          blob: { name: 'api-monitor/events/session/webhooks/a.json' },
+          data: { id: 'a' }
+        },
+        {
+          blob: { name: 'api-monitor/events/session/webhooks/b.json' },
+          data: { id: 'b' }
+        }
+      ])
+  })
+
+  test('deletes all blobs under a prefix', async () => {
+    const mocks = createMockBlobClient()
+    mocks.listBlobsFlat.mockReturnValue([
+      { name: 'api-monitor/events/session/webhooks/a.json' },
+      { name: 'api-monitor/events/session/webhooks/b.json' }
+    ])
+    mocks.deleteIfExists
+      .mockResolvedValueOnce({ succeeded: true })
+      .mockResolvedValueOnce({ succeeded: true })
+
+    await expect(deleteBlobsByPrefix(mocks.blobServiceClient, 'api-monitor/events/session/webhooks/'))
+      .resolves.toMatchObject({
+        attemptedCount: 2,
+        deletedCount: 2
+      })
+
+    expect(mocks.getBlockBlobClient).toHaveBeenCalledWith('api-monitor/events/session/webhooks/a.json')
+    expect(mocks.getBlockBlobClient).toHaveBeenCalledWith('api-monitor/events/session/webhooks/b.json')
   })
 })

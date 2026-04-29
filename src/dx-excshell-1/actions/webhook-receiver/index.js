@@ -9,19 +9,18 @@
 
 const { v4: uuidv4 } = require('uuid')
 const {
-  createBlobServiceClient,
-  readJsonBlob,
-  writeJsonBlob
+  createBlobServiceClient
 } = require('../shared/blobStore')
+const {
+  findOrCreateMonitorSession,
+  updateWebhookSessionSummary,
+  writeWebhookEvent
+} = require('../shared/apiMonitorStore')
 const {
   buildRequestBodyFromFlattenedParams,
   redactObject,
   safeStringify
 } = require('../shared/redaction')
-
-const SESSION_BLOB_METADATA = Object.freeze({
-  purpose: 'api-monitor-session-data'
-})
 
 // Helper function to get IMS user identifier
 function getUserIdentifier(headers) {
@@ -53,17 +52,6 @@ function getUserIdentifier(headers) {
   // Fallback to a default identifier
   console.log('Using default user identifier')
   return 'default_user'
-}
-
-// Helper function to get blob path for session data
-function getSessionBlobPath(userId, sessionId) {
-  return `api-monitor/DO_NOT_DELETE_APPBUILDER_${userId}_${sessionId}.json`
-}
-
-function writeSessionJsonBlob(blobServiceClient, blobPath, data) {
-  return writeJsonBlob(blobServiceClient, blobPath, data, {
-    metadata: SESSION_BLOB_METADATA
-  })
 }
 
 // main function that will be executed by Adobe I/O Runtime
@@ -108,81 +96,17 @@ async function main(params) {
     const userId = getUserIdentifier(params.__ow_headers || {})
     console.log(`Webhook for user: ${userId}, session: ${sessionId}`)
     
-    // Load session data from Azure Blob Storage
     const blobServiceClient = createBlobServiceClient(params)
-    
-        // Try to find the session data with different user IDs (find the best match)
-    let sessionData = null
-    let actualUserId = userId
-    let blobPath = getSessionBlobPath(userId, sessionId)
-    let bestSessionData = null
-    let bestUserId = null
-    let bestBlobPath = null
-    let bestScore = -1
-    const configuredOrgUserId = (params.orgId || process.env.AEP_ORG_ID || '').replace('@', '_')
-    
-    // Try all possible user IDs and pick the one with the most complete session
-    const allUserIds = [
-      userId, // Start with detected user ID
-      configuredOrgUserId,
-      'user_anonymous',
-      'default_user'
-    ].filter(Boolean)
-    
-    for (const testUserId of allUserIds) {
-      console.log(`Trying user ID: ${testUserId}`)
-      const testBlobPath = getSessionBlobPath(testUserId, sessionId)
-      console.log(`Blob path: ${testBlobPath}`)
-      
-      const testSessionData = await readJsonBlob(blobServiceClient, testBlobPath)
-      if (testSessionData) {
-        // Calculate a score based on session completeness
-        const requestCount = testSessionData.session.requestCount || 0
-        const webhookCount = testSessionData.session.webhookCount || 0
-        const score = requestCount * 10 + webhookCount // Prioritize request logs
-        
-        console.log(`Found session data with user ID: ${testUserId}`)
-        console.log(`Session score: ${score} (requests: ${requestCount}, webhooks: ${webhookCount})`)
-        
-        if (score > bestScore) {
-          bestSessionData = testSessionData
-          bestUserId = testUserId
-          bestBlobPath = testBlobPath
-          bestScore = score
-          console.log(`New best session found with user ID: ${testUserId}`)
-        }
-      } else {
-        console.log(`No session data found with user ID: ${testUserId}`)
-      }
-    }
-    
-    // Use the best session found
-    if (bestSessionData) {
-      sessionData = bestSessionData
-      actualUserId = bestUserId
-      blobPath = bestBlobPath
-      console.log(`Using session with user ID: ${actualUserId}, score: ${bestScore}`)
-    }
-    
-    // Create session if it doesn't exist (for external webhook calls)
-    if (!sessionData) {
-      console.log(`Creating new session data for webhook: ${sessionId}`)
-      sessionData = {
-        session: {
-          id: sessionId,
-          userId: actualUserId,
-          created: new Date().toISOString(),
-          requestCount: 0,
-          webhookCount: 0,
-          lastActivity: new Date().toISOString()
-        },
-        requestLogs: [],
-        webhookLogs: []
-      }
-    }
-    
     const webhookId = uuidv4()
     const timestamp = new Date().toISOString()
+    const monitorSession = await findOrCreateMonitorSession(blobServiceClient, sessionId, {
+      params,
+      userId,
+      timestamp
+    })
+    let sessionData = monitorSession.sessionData
+
+    console.log(`Using session with user ID: ${monitorSession.userId}, created: ${monitorSession.created}`)
     
     // Parse the request body
     let requestBody = null
@@ -261,57 +185,18 @@ async function main(params) {
       }
     }
     
-    // Update session data
-    sessionData.webhookLogs = sessionData.webhookLogs || []
-    sessionData.webhookLogs.push(webhookEntry)
-    sessionData.session.webhookCount++
-    sessionData.session.lastActivity = timestamp
-    
-    // Save back to Azure Blob Storage with retry mechanism to handle race conditions
-    console.log(`Saving updated session data to blob path: ${blobPath}`)
-    console.log(`Updated session data:`, JSON.stringify({
+    const eventBlobPath = await writeWebhookEvent(blobServiceClient, webhookEntry)
+    sessionData = await updateWebhookSessionSummary(blobServiceClient, monitorSession, {
+      timestamp
+    })
+
+    console.log(`Saved webhook event to blob path: ${eventBlobPath}`)
+    console.log(`Updated session summary:`, JSON.stringify({
       sessionId: sessionData.session.id,
       userId: sessionData.session.userId,
       webhookCount: sessionData.session.webhookCount,
-      webhookLogsLength: (sessionData.webhookLogs || []).length,
       requestLogsLength: (sessionData.requestLogs || []).length
     }, null, 2))
-    
-    // Retry mechanism to handle concurrent updates
-    let saveAttempts = 0
-    const maxAttempts = 3
-    
-    while (saveAttempts < maxAttempts) {
-      try {
-        // Re-read the latest session data before saving to avoid overwriting concurrent changes
-        if (saveAttempts > 0) {
-          console.log(`Retry attempt ${saveAttempts}: Re-reading session data before save`)
-          const latestSessionData = await readJsonBlob(blobServiceClient, blobPath)
-          if (latestSessionData) {
-            // Merge the webhook data with the latest session data
-            latestSessionData.webhookLogs = latestSessionData.webhookLogs || []
-            latestSessionData.webhookLogs.push(webhookEntry)
-            latestSessionData.session.webhookCount = (latestSessionData.webhookLogs || []).length
-            latestSessionData.session.lastActivity = timestamp
-            sessionData = latestSessionData
-            console.log(`Merged with latest session data. New counts: requests=${(sessionData.requestLogs || []).length}, webhooks=${(sessionData.webhookLogs || []).length}`)
-          }
-        }
-        
-        await writeSessionJsonBlob(blobServiceClient, blobPath, sessionData)
-        console.log(`Successfully saved session data on attempt ${saveAttempts + 1}`)
-        break
-        
-      } catch (error) {
-        saveAttempts++
-        console.error(`Save attempt ${saveAttempts} failed:`, error.message)
-        if (saveAttempts >= maxAttempts) {
-          throw error
-        }
-        // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 100 * saveAttempts))
-      }
-    }
     
     console.log(`Webhook logged for session ${sessionId}:`, webhookEntry.webhookId)
     

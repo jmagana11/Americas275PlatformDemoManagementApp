@@ -17,6 +17,8 @@ This file gives future agent sessions enough context to work safely without re-l
 - Deployment workflows are manual-only. Merging to `main` should not deploy this app by itself.
 - PR #1 merged the production-safe cleanup and redaction baseline into `main`.
 - M1 is complete locally: shared Runtime config resolver, app-owned duplicate env dedupe, prompt-generation migration, and Campaign Trigger canonical credential resolution.
+- M2 is complete locally: shared Azure Blob helper, JSON read/write helpers, not-found handling, metadata normalization, prefix list/delete support, and API Monitor/webhook receiver helper migration.
+- M3 is complete locally: API Monitor inbound webhooks now use per-event blobs with shared session lookup, deterministic read/clear behavior, stable UI row keys, and visible live refresh.
 
 ## Non-Negotiables
 
@@ -70,13 +72,13 @@ docs/REFACTOR_CHANGE_LOG.md
    - Remaining work is migrating more action clusters to the resolver and deciding whether local-only/generated env aliases should be cleaned outside source.
 
 2. API Monitor inbound webhook reliability:
-   - Inbound requests are stored by mutating one session JSON blob in Azure Blob Storage.
-   - Concurrent webhook calls can overwrite each other because the receiver appends to stale session data and only re-reads on retry.
-   - `getWebhookLogs`, `clearWebhookLogs`, and `webhook-receiver` do not share exactly the same session/user blob lookup rules.
-   - The UI indexes rows by array index rather than stable request ids.
+   - M3 moved inbound webhook events to per-event blobs under `api-monitor/events/<sessionId>/webhooks/`.
+   - `getWebhookLogs`, `clearWebhookLogs`, and `webhook-receiver` now share session lookup and webhook event storage helpers.
+   - Legacy session-embedded `webhookLogs` still read and clear gracefully.
+   - Remaining storage work belongs in M4: align API Monitor, API Proxy, and `session-manager` around a documented schema.
 
 3. Repeated backend helpers:
-   - Azure Blob client creation appears in several actions.
+   - Azure Blob client creation is centralized for migrated API Monitor actions, but still appears in non-migrated actions.
    - AEP IMS org/api-key/header construction appears in many actions.
    - Adobe IMS token fetching appears in multiple org-aware actions.
    - JSON response/error formatting is inconsistent.
@@ -146,4 +148,4 @@ aio app build
 
 ## Suggested First Follow-Up
 
-Start with Milestone M2 in `docs/APP_REFACTOR_PLAN.md`: add the shared Azure Blob storage module, then use it in the API Monitor/API Proxy storage work. M3 remains the highest-priority user-visible bug after the blob helper foundation is in place.
+Start with Milestone M4 in `docs/APP_REFACTOR_PLAN.md`: align API Monitor, API Proxy, and session-manager storage around one documented schema. M8 and M7 remain the next high-value config/backend helper clusters after the storage model is stable.

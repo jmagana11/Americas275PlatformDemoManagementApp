@@ -165,6 +165,74 @@ async function writeJsonBlob(blobServiceClient, blobPath, data, options = {}) {
   return blockBlobClient.upload(jsonContent, Buffer.byteLength(jsonContent), uploadOptions)
 }
 
+async function listBlobsByPrefix(blobServiceClient, prefix, options = {}) {
+  const containerClient = getContainerClient(blobServiceClient, options)
+  const listOptions = {
+    ...(options.listOptions || {}),
+    prefix
+  }
+  const blobs = []
+
+  for await (const blob of containerClient.listBlobsFlat(listOptions)) {
+    blobs.push(blob)
+  }
+
+  return blobs
+}
+
+async function readJsonBlobsByPrefix(blobServiceClient, prefix, options = {}) {
+  const blobs = await listBlobsByPrefix(blobServiceClient, prefix, options)
+  const results = []
+
+  for (const blob of blobs) {
+    const data = await readJsonBlob(blobServiceClient, blob.name, options)
+    if (data !== null && data !== undefined) {
+      results.push({
+        blob,
+        data
+      })
+    }
+  }
+
+  return results
+}
+
+async function deleteBlobIfExists(blobServiceClient, blobPath, options = {}) {
+  const blockBlobClient = getBlockBlobClient(blobServiceClient, blobPath, options)
+
+  if (typeof blockBlobClient.deleteIfExists === 'function') {
+    return blockBlobClient.deleteIfExists(options.deleteOptions || {})
+  }
+
+  if (typeof blockBlobClient.delete === 'function') {
+    try {
+      return await blockBlobClient.delete(options.deleteOptions || {})
+    } catch (error) {
+      if (isBlobNotFound(error)) {
+        return { succeeded: false }
+      }
+      throw error
+    }
+  }
+
+  throw new Error('Azure BlockBlobClient delete support is required')
+}
+
+async function deleteBlobsByPrefix(blobServiceClient, prefix, options = {}) {
+  const blobs = await listBlobsByPrefix(blobServiceClient, prefix, options)
+  const results = []
+
+  for (const blob of blobs) {
+    results.push(await deleteBlobIfExists(blobServiceClient, blob.name, options))
+  }
+
+  return {
+    deletedCount: results.filter((result) => result === undefined || result.succeeded !== false).length,
+    attemptedCount: blobs.length,
+    results
+  }
+}
+
 function createJsonBlobStore(params = {}, options = {}) {
   const blobServiceClient = options.blobServiceClient || createBlobServiceClient(params, options)
 
@@ -184,10 +252,14 @@ function createJsonBlobStore(params = {}, options = {}) {
 module.exports = {
   createBlobServiceClient,
   createJsonBlobStore,
+  deleteBlobIfExists,
+  deleteBlobsByPrefix,
   getBlockBlobClient,
   getContainerClient,
   isBlobNotFound,
+  listBlobsByPrefix,
   normalizeMetadata,
+  readJsonBlobsByPrefix,
   readJsonBlob,
   streamToString,
   writeJsonBlob

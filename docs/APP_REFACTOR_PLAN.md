@@ -95,12 +95,15 @@ Follow-up after M1:
 
 ### M2: Shared Azure Blob Storage Module
 
+Status: Completed locally on 2026-04-29.
+
 Goal: Make blob operations consistent, testable, and concurrency-aware.
 
 Current observations:
-- Multiple actions create `BlobServiceClient` by concatenating `AZURE_BLOB_URL` and `AZURE_SAS_TOKEN`.
-- Read/write helpers are duplicated.
-- API Monitor stores mutable session state as one JSON blob.
+- M2 added `actions/shared/blobStore.js` for shared BlobServiceClient creation, JSON read/write, blob-not-found handling, optional ETag conditional writes, safe metadata, and prefix list/delete support.
+- `api-monitor` and `webhook-receiver` now use the shared blob helper.
+- Existing session blob paths remain compatible.
+- Non-migrated actions still have local Azure Blob logic and should adopt the helper when their workflows are touched.
 
 Implementation plan:
 1. Add `src/dx-excshell-1/actions/shared/blobStore.js`.
@@ -121,16 +124,25 @@ Acceptance criteria:
 
 ### M3: API Monitor Inbound Webhook Correctness
 
+Status: Completed locally on 2026-04-29.
+
 Goal: Make the inbound API tester display all requests sent to a webhook endpoint, including bursts, and make clear/read behavior deterministic.
 
 Current observations:
-- The webhook receiver appends inbound logs into a shared session JSON blob.
-- Concurrent webhook requests can read the same old blob, append independently, and last writer wins.
-- Retry merge only re-reads latest session data after a failed write, not before the first write.
-- `getWebhookLogs` reads only the current user path, while `webhook-receiver` searches multiple possible user paths.
-- `clearWebhookLogs` also reads only one path.
-- The UI uses array indexes as row keys and selected-log references.
-- The auto-refresh switch is hidden, so inbound monitoring relies on manual refresh or hidden state.
+- M3 added `actions/shared/apiMonitorStore.js` for shared API Monitor session lookup, webhook event paths, listing, clearing, and session summary updates.
+- Inbound webhook requests are now stored as individual blobs under `api-monitor/events/<sessionId>/webhooks/`.
+- `getWebhookLogs` reads event blobs plus legacy session-embedded `webhookLogs`, sorted newest-first.
+- `clearWebhookLogs` deletes only webhook event blobs for the session and clears legacy embedded inbound logs.
+- API Monitor UI uses stable request/webhook ids for row keys and selected-log lookup.
+- The live refresh switch is visible.
+
+Completed implementation:
+- Extended `actions/shared/blobStore.js` with prefix listing, JSON reads by prefix, and prefix deletes.
+- Migrated `webhook-receiver` to write one blob per inbound webhook event and update the session summary blob.
+- Migrated `api-monitor` inbound read/clear behavior to the shared API Monitor store.
+- Preserved existing session JSON blob paths and legacy embedded webhook log fallback.
+- Added Jest coverage for session lookup, event-per-blob listing, summary updates, clearing behavior, and prefix blob helper behavior.
+- Automated verification passed; local browser smoke was left for manual user execution.
 
 Implementation plan:
 1. Reproduce locally:
@@ -166,7 +178,8 @@ Acceptance criteria:
 Goal: Make API Monitor, API Proxy, and session-manager share a storage model instead of parallel models.
 
 Current observations:
-- API Monitor stores `requestLogs`, `webhookLogs`, and `proxyConfigs` in one session blob.
+- API Monitor still stores `requestLogs` and `proxyConfigs` in one session blob.
+- M3 moved inbound `webhookLogs` to per-event blobs while keeping legacy embedded logs readable.
 - API Proxy has a richer `features.apiProxy` model and migration logic.
 - `session-manager` exists but is not clearly the single source of truth.
 
@@ -550,10 +563,9 @@ Files:
 - `webhook-receiver`
 
 Plan:
-- Implement M3 first.
-- Use stable event ids as UI row keys.
-- Make live refresh visible and reliable.
-- Add a manual smoke script or documented curl loop for burst testing.
+- M3 completed inbound webhook event-per-blob storage, stable event ids as UI row keys, and visible live refresh.
+- Keep the manual burst smoke script below available for regression checks.
+- Fold API Monitor storage into the M4 storage alignment plan before broadening API Proxy/session-manager behavior.
 
 Example smoke command shape:
 
@@ -655,16 +667,17 @@ Plan:
 
 Completed:
 - M1: Canonical runtime config helper, credential resolver aliases, and app-owned duplicate env source dedupe.
+- M2: Shared Azure Blob helper and API Monitor/webhook receiver migration.
+- M3: API Monitor inbound webhook correctness with event-per-blob storage and stable UI selection.
 
 Next recommended sequence:
-1. M2: Shared Azure Blob helper.
-2. M3: API Monitor inbound correctness.
-3. M8: Org-specific config cluster.
-4. M7: AEP backend helper cluster.
-5. M5 and M6: Frontend registry and access control cleanup.
-6. M9, M10, M11: Tool-specific cleanup.
-7. M12: Smoke automation expansion.
-8. M13: Auth hardening and Runtime upgrade.
+1. M4: API Monitor and API Proxy storage alignment.
+2. M8: Org-specific config cluster.
+3. M7: AEP backend helper cluster.
+4. M5 and M6: Frontend registry and access control cleanup.
+5. M9, M10, M11: Tool-specific cleanup.
+6. M12: Smoke automation expansion.
+7. M13: Auth hardening and Runtime upgrade.
 
 ## Change Log Rule
 

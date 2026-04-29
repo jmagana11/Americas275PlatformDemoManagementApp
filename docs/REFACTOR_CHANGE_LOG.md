@@ -27,6 +27,63 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-04-29 - M3 API Monitor Inbound Webhook Correctness
+
+Branch: `codex/m3-api-monitor-webhooks`
+
+Milestone: M3 - API Monitor Inbound Webhook Correctness
+
+Intent:
+- Make inbound API Monitor webhook logging deterministic under burst traffic.
+- Use the M2 shared blob helper to move inbound webhook events away from last-writer-wins mutation of a single session JSON blob.
+- Align `webhook-receiver`, `getWebhookLogs`, and `clearWebhookLogs` around the same session lookup and webhook storage rules.
+- Update the API Monitor UI to use stable webhook ids for inbound row keys/selection and make live refresh visible or explicit.
+- Add focused tests for webhook event storage/listing/clearing and compatible fallback behavior.
+
+Result:
+- Added `actions/shared/apiMonitorStore.js` for shared API Monitor session lookup, session blob paths, webhook event blob paths, event listing, event clearing, session summary updates, and backward-compatible legacy embedded webhook logs.
+- Extended `actions/shared/blobStore.js` with prefix listing, prefix JSON reads, and prefix deletes.
+- Migrated inbound webhook capture so `webhook-receiver` writes each inbound request to its own blob under `api-monitor/events/<sessionId>/webhooks/`.
+- Updated `api-monitor` `getWebhookLogs` to read event blobs plus legacy embedded webhook logs, sorted newest-first, and `clearWebhookLogs` to delete event blobs while clearing legacy embedded logs.
+- Kept the session JSON blob as the compatibility and summary record for existing session paths.
+- Updated `ApiMonitor.js` so outbound and inbound tables use stable request/webhook ids for row keys and selected-row lookup.
+- Made the API Monitor live refresh switch visible.
+- Added focused storage tests for shared session lookup, event-per-blob listing, summary update, clear behavior, and blob prefix list/read/delete helpers.
+
+Files changed:
+- `AGENT.md`
+- `docs/APP_REFACTOR_PLAN.md`
+- `README.md`
+- `src/dx-excshell-1/actions/shared/apiMonitorStore.js`
+- `src/dx-excshell-1/actions/shared/blobStore.js`
+- `src/dx-excshell-1/actions/api-monitor/index.js`
+- `src/dx-excshell-1/actions/webhook-receiver/index.js`
+- `src/dx-excshell-1/web-src/src/components/ApiMonitor.js`
+- `src/dx-excshell-1/test/apiMonitorStore.test.js`
+- `src/dx-excshell-1/test/blobStore.test.js`
+- `docs/REFACTOR_CHANGE_LOG.md`
+
+Behavior impact:
+- Existing session creation, proxy logging, session blob paths, UI route paths, action names, auth annotations, and Runtime version are preserved.
+- Inbound webhook history now reads from per-event blobs, which avoids concurrent webhook calls overwriting each other in the shared session JSON blob.
+- Old session-embedded `webhookLogs` still read and are cleared gracefully.
+- Clearing inbound logs deletes only webhook event blobs for that session and clears the legacy embedded inbound array; outbound request logs and proxy configs are not cleared.
+
+Verification:
+- Passed: focused `node node_modules/jest/bin/jest.js --passWithNoTests src/dx-excshell-1/test/blobStore.test.js src/dx-excshell-1/test/apiMonitorStore.test.js --runInBand` - 2 suites, 14 tests.
+- Passed: `npm test -- --runInBand` - 13 suites, 89 tests.
+- Passed: `aio app build` - built 39 actions and web assets.
+- Attempted: `aio app run --open` in sandbox, blocked by local listen/cache permission (`EPERM` on port 9080 and AIO cache log).
+- Skipped with user approval: escalated local browser smoke; user will run the smoke test manually.
+
+Open questions:
+- Whether event-per-blob storage should later be generalized for outbound request/proxy events as part of M4.
+- Whether the visible live refresh switch should later be relocated into each tab toolbar after broader API Monitor UI cleanup.
+
+Next recommended step:
+- User manual smoke test: create an API Monitor session, send a burst of at least 20 POST requests to the generated webhook URL, refresh or enable live refresh, verify 20 inbound rows, clear inbound logs, then send another burst and verify all new rows appear.
+- After M3 is merged into `main`, proceed to M4 storage alignment.
+
 ## 2026-04-29 - M2 Shared Azure Blob Storage Module
 
 Branch: `codex/m2-blob-store`

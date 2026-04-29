@@ -11,6 +11,7 @@ The app is a React Spectrum single-page application running in Experience Cloud 
 - Provides AI tooling for image analysis, prompt generation, image generation, and AI-assisted profile creation.
 - Provides operational utilities including API Monitor, API Proxy, URL Shortener, file upload/download, token/crypto helpers, and JMeter-related testing tools.
 - Stores API Monitor and API Proxy session data in Azure Blob Storage.
+- Stores API Monitor inbound webhook events as individual Azure Blob JSON files under the session event prefix, while keeping the session JSON blob as a compatibility and summary record.
 - Resolves service credentials server-side through App Builder inputs/environment variables, not from frontend source.
 
 ## Architecture
@@ -89,6 +90,21 @@ src/dx-excshell-1/actions/shared/config.js
 
 The resolver prefers canonical env inputs and keeps older duplicate names as temporary aliases. App-owned duplicate credential env sources removed from `ext.config.yaml` include Campaign Trigger client/org credential inputs and per-org Microsoft app role ids.
 
+Shared Azure Blob helpers live in:
+
+```text
+src/dx-excshell-1/actions/shared/blobStore.js
+src/dx-excshell-1/actions/shared/apiMonitorStore.js
+```
+
+API Monitor inbound webhooks are stored per event at:
+
+```text
+api-monitor/events/<sessionId>/webhooks/
+```
+
+The older session-embedded `webhookLogs` array remains readable and clearable for compatibility with existing session blobs.
+
 ## Local Development
 
 From the repository root:
@@ -139,6 +155,7 @@ Before merging or staging, test the main workflows locally:
 - Content Template Migrator sandbox/template flows
 - AI prompt/image paths
 - API Monitor webhook capture and redaction
+- API Monitor inbound webhook burst capture: send at least 20 quick POST requests to the generated webhook URL, verify 20 inbound rows, clear inbound logs, then verify a second burst appears completely.
 - API Proxy request logging and redaction
 - File upload/download
 - Campaign Trigger
@@ -183,7 +200,7 @@ git branch -d codex/app-builder-spec-cleanup
 Keep follow-up work in small PRs:
 
 - centralize Adobe Platform auth/header helpers
-- centralize Azure Blob client creation
+- continue migrating non-API-Monitor Azure Blob actions to the shared Blob helper
 - centralize JSON/error response formatting
 - continue migrating action clusters to the shared Runtime config resolver
 - centralize OpenAI/Azure OpenAI request handling beyond `prompt-generation`

@@ -476,6 +476,10 @@ export const ApiMonitor = ({ runtime, ims }) => {
     if (status >= 400) return 'negative'
     return 'neutral'
   }
+
+  const findLogById = (items, id, idField) => {
+    return items.find((item) => item[idField] === id) || null
+  }
   
   const renderLogDetails = (log) => {
     if (!log) return null
@@ -739,8 +743,8 @@ export const ApiMonitor = ({ runtime, ims }) => {
               </View>
               <View gridArea="actions">
                 <Flex direction="column" gap="size-100">
-                  <Switch isSelected={autoRefresh} onChange={setAutoRefresh} UNSAFE_style={{ display: 'none' }}>
-                    Auto Refresh
+                  <Switch isSelected={autoRefresh} onChange={setAutoRefresh}>
+                    Live refresh
                   </Switch>
                 </Flex>
               </View>
@@ -882,7 +886,7 @@ export const ApiMonitor = ({ runtime, ims }) => {
                       onSelectionChange={(keys) => {
                         const selectedKey = Array.from(keys)[0]
                         if (selectedKey !== undefined) {
-                          setSelectedLog(logs[selectedKey])
+                          setSelectedLog(findLogById(logs, selectedKey, 'requestId'))
                         }
                       }}
                     >
@@ -896,7 +900,7 @@ export const ApiMonitor = ({ runtime, ims }) => {
                       </TableHeader>
                       <TableBody>
                         {logs.map((log, index) => (
-                          <Row key={index}>
+                          <Row key={log.requestId || `request-${log.timestamp}-${index}`}>
                             <Cell>{new Date(log.timestamp).toLocaleTimeString()}</Cell>
                             <Cell>
                               <Badge variant="neutral">{log.request.method}</Badge>
@@ -1007,7 +1011,7 @@ export const ApiMonitor = ({ runtime, ims }) => {
                       onSelectionChange={(keys) => {
                         const selectedKey = Array.from(keys)[0]
                         if (selectedKey !== undefined) {
-                          setSelectedWebhookLog(webhookLogs[selectedKey])
+                          setSelectedWebhookLog(findLogById(webhookLogs, selectedKey, 'webhookId'))
                         }
                       }}
                     >
@@ -1021,7 +1025,7 @@ export const ApiMonitor = ({ runtime, ims }) => {
                       </TableHeader>
                       <TableBody>
                         {webhookLogs.map((log, index) => (
-                          <Row key={index}>
+                          <Row key={log.webhookId || `webhook-${log.timestamp}-${index}`}>
                             <Cell>{new Date(log.timestamp).toLocaleTimeString()}</Cell>
                             <Cell>
                               <Badge variant="neutral">{log.request.method}</Badge>
@@ -1215,4 +1219,4 @@ export const ApiMonitor = ({ runtime, ims }) => {
   )
 }
 
-export default ApiMonitor 
+export default ApiMonitor
