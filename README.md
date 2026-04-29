@@ -159,7 +159,7 @@ Then:
 3. Deploy to Stage.
 4. Run the smoke test checklist against Stage.
 5. Merge to `main` only after Stage is clean.
-6. Keep production deployment manual unless the release owner explicitly approves automatic production deploy behavior.
+6. Deploy only through the manual GitHub Actions workflows or the release owner's chosen manual App Builder deploy path.
 
 After the PR is merged:
 
@@ -183,6 +183,7 @@ Keep follow-up work in small PRs:
 
 ## Operational Notes
 
-- Existing credential-like values that were visible in local testing should be considered exposed and rotated through the proper Adobe, Azure, Microsoft, and GitHub secret channels.
+- Credential values should be managed through the proper Adobe, Azure, Microsoft, App Builder, and GitHub secret channels rather than tracked source.
 - API Monitor and API Proxy should never store raw Runtime inputs or sensitive headers.
+- The deployment workflows are manual by design; merging to `main` should not deploy this app by itself.
 - `campaign-trigger-app/`, generated exports, `.env`, `.aio`, build output, local scratch files, and credential JSON exports are intentionally ignored.

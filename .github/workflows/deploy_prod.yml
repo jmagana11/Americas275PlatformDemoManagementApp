@@ -1,8 +1,7 @@
 name: AIO App CI
 
 on:
-  release:
-    types: [released]
+  workflow_dispatch:
 jobs:
   deploy:
     name: Deploy to Prod

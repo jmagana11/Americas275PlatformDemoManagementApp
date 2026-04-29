@@ -1,6 +1,51 @@
 name: AIO App CI
 
 on: [pull_request]
+
+env:
+  LOG_LEVEL: info
+  AEP_API_KEY: ci-placeholder
+  AEP_CLIENT_SECRET: ci-placeholder
+  AEP_TECH_ACCOUNT_ID: ci-placeholder
+  AEP_TECH_ACCOUNT_EMAIL: ci-placeholder
+  AEP_ORG_ID: ci-placeholder
+  JMETER_API_KEY: ci-placeholder
+  AZURE_BLOB_URL: https://example.blob.core.windows.net/container
+  AZURE_SAS_TOKEN: ci-placeholder
+  AZURE_OPENAI_ENDPOINT: https://example.openai.azure.com/openai/deployments/example/chat/completions?api-version=2023-05-15
+  AZURE_OPENAI_KEY: ci-placeholder
+  AZURE_OPENAI_IMAGE_ENDPOINT: https://example.openai.azure.com/openai/deployments/example/images/generations?api-version=2024-02-01
+  AZURE_OPENAI_IMAGE_KEY: ci-placeholder
+  AZURE_VISION_ENDPOINT: https://example.cognitiveservices.azure.com/vision/v3.2/tag
+  AZURE_VISION_KEY: ci-placeholder
+  MA1HOL_API_KEY: ci-placeholder
+  MA1HOL_CLIENT_SECRET: ci-placeholder
+  MA1HOL_IMS_ORG: ci-placeholder
+  MA1HOL_TENANT: ci-placeholder
+  MA1HOL_EMAIL_DOMAIN: example.com
+  MA1HOL_MS_CLIENT_ID: ci-placeholder
+  MA1HOL_MS_CLIENT_SECRET: ci-placeholder
+  MA1HOL_MS_TENANT_ID: ci-placeholder
+  MA1HOL_MS_APP_ROLE_ID: ci-placeholder
+  MA1HOL_MS_APP_RESOURCE_ID: ci-placeholder
+  POT5HOL_API_KEY: ci-placeholder
+  POT5HOL_CLIENT_SECRET: ci-placeholder
+  POT5HOL_IMS_ORG: ci-placeholder
+  POT5HOL_TENANT: ci-placeholder
+  POT5HOL_EMAIL_DOMAIN: example.com
+  POT5HOL_MS_CLIENT_ID: ci-placeholder
+  POT5HOL_MS_CLIENT_SECRET: ci-placeholder
+  POT5HOL_MS_TENANT_ID: ci-placeholder
+  POT5HOL_MS_APP_ROLE_ID: ci-placeholder
+  POT5HOL_MS_APP_RESOURCE_ID: ci-placeholder
+  POT5HOL_CONTENT_API_KEY: ci-placeholder
+  POT5HOL_CONTENT_CLIENT_SECRET: ci-placeholder
+  CAMPAIGN_TRIGGER_CLIENT_ID: ci-placeholder
+  CAMPAIGN_TRIGGER_CLIENT_SECRET: ci-placeholder
+  CAMPAIGN_TRIGGER_SCOPE: ci-placeholder
+  CAMPAIGN_TRIGGER_IMS_ORG: ci-placeholder
+  CAMPAIGN_TRIGGER_SANDBOX: ci-placeholder
+
 jobs:
   test:
     name: Test PR
@@ -23,26 +68,7 @@ jobs:
         with:
           os: ${{ matrix.os }}
           version: 10.x.x
-      - name: Auth
-        uses: adobe/aio-apps-action@3.3.0
-        with:
-          os: ${{ matrix.os }}
-          command: auth
-          CLIENTID: ${{ secrets.CLIENTID_STAGE }}
-          CLIENTSECRET: ${{ secrets.CLIENTSECRET_STAGE }}
-          TECHNICALACCOUNTID: ${{ secrets.TECHNICALACCID_STAGE }}
-          IMSORGID: ${{ secrets.IMSORGID_STAGE }}
-          SCOPES: ${{ secrets.SCOPES_STAGE }}
-          KEY: ${{ secrets.KEY_STAGE }}
       - name: Build
-        env:
-          AIO_RUNTIME_NAMESPACE: ${{ secrets.AIO_RUNTIME_NAMESPACE_STAGE }}
-        uses: adobe/aio-apps-action@3.3.0
-        with:
-          os: ${{ matrix.os }}
-          command: build
+        run: aio app build
       - name: Test
-        uses: adobe/aio-apps-action@3.3.0
-        with:
-          os: ${{ matrix.os }}
-          command: test
+        run: npm test -- --runInBand
