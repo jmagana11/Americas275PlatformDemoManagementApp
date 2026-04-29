@@ -12,39 +12,12 @@ import {
   Divider
 } from '@adobe/react-spectrum'
 import { useSidebar } from './SidebarContext'
-import { 
-  hasUserManagementAccess, 
-  hasAEPOverviewAccess,
-  hasJmeterTestingAccess,
-  hasFileManagerAccess,
-  hasApiDocumentationAccess,
-  hasContentMigratorAccess,
-  hasAIProfileInjectorAccess,
-  hasApiProxyAccess,
-  logAccessControlInfo 
-} from '../utils/accessControl'
+import { logAccessControlInfo } from '../utils/accessControl'
+import { getSectionNavItems, getTopLevelNavItems, NAV_SECTIONS } from '../appRegistry'
 import ChevronDown from '@spectrum-icons/workflow/ChevronDown'
 import ChevronRight from '@spectrum-icons/workflow/ChevronRight'
 import Menu from '@spectrum-icons/workflow/Menu'
 import Close from '@spectrum-icons/workflow/Close'
-import Home from '@spectrum-icons/workflow/Home'
-import Data from '@spectrum-icons/workflow/Data'
-import GraphBarVertical from '@spectrum-icons/workflow/GraphBarVertical'
-import TextBulletedHierarchy from '@spectrum-icons/workflow/TextBulletedHierarchy'
-import Refresh from '@spectrum-icons/workflow/Refresh'
-import Beaker from '@spectrum-icons/workflow/Beaker'
-import FileCode from '@spectrum-icons/workflow/FileCode'
-import TestAB from '@spectrum-icons/workflow/TestAB'
-import DocumentOutline from '@spectrum-icons/workflow/DocumentOutline'
-import MagicWand from '@spectrum-icons/workflow/MagicWand'
-import UserGroup from '@spectrum-icons/workflow/UserGroup'
-import Key from '@spectrum-icons/workflow/Key'
-import Download from '@spectrum-icons/workflow/Download'
-import LinkNav from '@spectrum-icons/workflow/LinkNav'
-import WebPage from '@spectrum-icons/workflow/WebPage'
-import Preview from '@spectrum-icons/workflow/Preview'
-import Document from '@spectrum-icons/workflow/Document'
-import Gift from '@spectrum-icons/workflow/Gift'
 
 function SideBar({ ims }) {
   const { sidebarCollapsed, toggleSidebar } = useSidebar()
@@ -57,12 +30,10 @@ function SideBar({ ims }) {
   }, [ims])
   
   // State for each section's collapsed status
-  const [sectionStates, setSectionStates] = useState({
-    aep: true,           // Adobe Experience Platform - expanded by default
-    products: false,     // Product Recommendations & Orders
-    ai: false,          // AI Tooling
-    utilities: false    // Utilities
-  })
+  const [sectionStates, setSectionStates] = useState(() => NAV_SECTIONS.reduce((states, section) => {
+    states[section.key] = section.defaultExpanded
+    return states
+  }, {}))
 
   const toggleSection = (section) => {
     // If sidebar is collapsed, expand it first and then expand the section
@@ -124,46 +95,49 @@ function SideBar({ ims }) {
     </ActionButton>
   )
 
-  const NavItem = ({ to, children, icon: Icon }) => (
-    <NavLink 
-      to={to}
-      className="SideNav-itemLink" 
-      activeClassName="is-selected"
-      style={{ textDecoration: 'none' }}
-    >
-      <Flex 
-        alignItems="center" 
-        gap="size-75"
-        UNSAFE_style={{
-          padding: sidebarCollapsed ? '6px' : '4px 8px 4px 12px',
-          margin: '1px 0',
-          borderRadius: '3px',
-          color: '#6B7280',
-          fontSize: '12px',
-          transition: 'all 0.2s ease',
-          cursor: 'pointer',
-          minHeight: '28px',
-          justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
-        }}
-        UNSAFE_className="nav-item-hover"
+  const NavItem = ({ item }) => {
+    const Icon = item.nav.icon
+    return (
+      <NavLink
+        to={item.path}
+        className="SideNav-itemLink"
+        activeClassName="is-selected"
+        style={{ textDecoration: 'none' }}
       >
-        {sidebarCollapsed && Icon && <Icon size="XS" UNSAFE_style={{ flexShrink: 0 }} />}
-        {!sidebarCollapsed && (
-          <Text 
-            UNSAFE_style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              minWidth: 0,
-              flex: 1
-            }}
-          >
-            {children}
-          </Text>
-        )}
-      </Flex>
-    </NavLink>
-  )
+        <Flex
+          alignItems="center"
+          gap="size-75"
+          UNSAFE_style={{
+            padding: sidebarCollapsed ? '6px' : '4px 8px 4px 12px',
+            margin: '1px 0',
+            borderRadius: '3px',
+            color: '#6B7280',
+            fontSize: '12px',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
+            minHeight: '28px',
+            justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
+          }}
+          UNSAFE_className="nav-item-hover"
+        >
+          {sidebarCollapsed && Icon && <Icon size="XS" UNSAFE_style={{ flexShrink: 0 }} />}
+          {!sidebarCollapsed && (
+            <Text
+              UNSAFE_style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0,
+                flex: 1
+              }}
+            >
+              {item.nav.label}
+            </Text>
+          )}
+        </Flex>
+      </NavLink>
+    )
+  }
 
   return (
     <View 
@@ -212,128 +186,30 @@ function SideBar({ ims }) {
         <View padding="size-75" flex>
           <Flex direction="column" gap="size-50">
             
-            {/* Home */}
-            <NavItem to="/" icon={Home}>
-              Home
-            </NavItem>
+            {getTopLevelNavItems(ims).map((item) => (
+              <NavItem key={item.key} item={item} />
+            ))}
 
             <Divider size="S" marginY="size-100" />
 
-            {/* AEP Functions Section */}
-            <View>
-              <SectionHeader
-                section="aep"
-                title="AEP Functions"
-                icon={Data}
-                isExpanded={sectionStates.aep}
-                onClick={() => toggleSection('aep')}
-              />
-              {sectionStates.aep && !sidebarCollapsed && (
-                <View marginStart="size-0">
-                  {hasAEPOverviewAccess(ims) && (
-                    <NavItem to="/AEPOverview" icon={GraphBarVertical}>
-                      AEP Overview
-                    </NavItem>
-                  )}
-                  {hasUserManagementAccess(ims) && (
-                    <NavItem to="/UserManagement" icon={UserGroup}>
-                      User Management
-                    </NavItem>
-                  )}
-                  {hasJmeterTestingAccess(ims) && (
-                    <NavItem to="/JmeterTesting" icon={Beaker}>
-                      Jmeter Testing
-                    </NavItem>
-                  )}
-                </View>
-              )}
-            </View>
-
-            {/* AJO Actions Section */}
-            <View>
-              <SectionHeader
-                section="products"
-                title="AJO Actions"
-                icon={TextBulletedHierarchy}
-                isExpanded={sectionStates.products}
-                onClick={() => toggleSection('products')}
-              />
-              {sectionStates.products && !sidebarCollapsed && (
-                <View marginStart="size-0">
-                  {hasApiDocumentationAccess(ims) && (
-                    <NavItem to="/ApiDocumentation" icon={DocumentOutline}>
-                      Custom Action APIs
-                    </NavItem>
-                  )}
-                  {hasContentMigratorAccess(ims) && (
-                    <NavItem to="/ContentTemplateMigrator" icon={Document}>
-                      Content Migrator
-                    </NavItem>
-                  )}
-                  <NavItem to="/CampaignTrigger">
-                    Campaign Trigger
-                  </NavItem>
-                  <NavItem to="/OfferSimulator" icon={Gift}>
-                    Offer Simulator
-                  </NavItem>
-                </View>
-              )}
-            </View>
-
-            {/* AI Tooling Section */}
-            <View>
-              <SectionHeader
-                section="ai"
-                title="AI Tooling"
-                icon={MagicWand}
-                isExpanded={sectionStates.ai}
-                onClick={() => toggleSection('ai')}
-              />
-              {sectionStates.ai && !sidebarCollapsed && (
-                <View marginStart="size-0">
-                  <NavItem to="/AIPromptGeneratorEnhanced" icon={MagicWand}>
-                    AI Prompt Generator
-                  </NavItem>
-                  {hasAIProfileInjectorAccess(ims) && (
-                    <NavItem to="/AEPProfileInjector" icon={Data}>
-                      AI AEP Profile Injector
-                    </NavItem>
-                  )}
-                </View>
-              )}
-            </View>
-
-            {/* Utilities Section */}
-            <View>
-              <SectionHeader
-                section="utilities"
-                title="Utilities"
-                icon={Preview}
-                isExpanded={sectionStates.utilities}
-                onClick={() => toggleSection('utilities')}
-              />
-              {sectionStates.utilities && !sidebarCollapsed && (
-                <View marginStart="size-0">
-                  <NavItem to="/URLShortener" icon={LinkNav}>
-                    URL Shortener
-                  </NavItem>
-                  <NavItem to="/CryptoUtils" icon={Key}>
-                    Crypto & Token Utils
-                  </NavItem>
-                  <NavItem to="/DataManagement" icon={Download}>
-                    Data Management
-                  </NavItem>
-                  <NavItem to="/ApiMonitor" icon={WebPage}>
-                    API Monitor
-                  </NavItem>
-                  {hasApiProxyAccess(ims) && (
-                    <NavItem to="/ProxyManager" icon={Preview}>
-                      API Proxy
-                    </NavItem>
-                  )}
-                </View>
-              )}
-            </View>
+            {NAV_SECTIONS.map((section) => (
+              <View key={section.key}>
+                <SectionHeader
+                  section={section.key}
+                  title={section.title}
+                  icon={section.icon}
+                  isExpanded={sectionStates[section.key]}
+                  onClick={() => toggleSection(section.key)}
+                />
+                {sectionStates[section.key] && !sidebarCollapsed && (
+                  <View marginStart="size-0">
+                    {getSectionNavItems(section.key, ims).map((item) => (
+                      <NavItem key={item.key} item={item} />
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
 
           </Flex>
         </View>

@@ -27,6 +27,59 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-04-29 - M5/M6 Route Registry And Access Control
+
+Branch: `codex/m5-m6-route-access`
+
+Milestone: M5 - Frontend Route, Nav, And Feature Registry / M6 - Access Control Consolidation
+
+Intent:
+- Introduce a shared frontend feature registry so `App.js` and `SideBar.js` use one source for route paths, sidebar labels, sidebar sections, icons, and access policies.
+- Keep all existing route paths, visible sidebar labels, protected-route redirects, and public/protected behavior unchanged.
+- Consolidate repeated access-control allowlists into named groups and feature policies while preserving the current effective allow/deny behavior.
+- Stop dumping full access allowlists to the browser console by default; keep a debug option for policy details.
+- Add tests for representative access decisions, registry route/sidebar wiring, and access-control logging behavior.
+
+Files changed:
+- `AGENT.md`
+- `README.md`
+- `docs/APP_REFACTOR_PLAN.md`
+- `docs/REFACTOR_CHANGE_LOG.md`
+- `src/dx-excshell-1/web-src/src/appRegistry.js`
+- `src/dx-excshell-1/web-src/src/components/App.js`
+- `src/dx-excshell-1/web-src/src/components/SideBar.js`
+- `src/dx-excshell-1/web-src/src/index.js`
+- `src/dx-excshell-1/web-src/src/utils/accessControl.js`
+- `src/dx-excshell-1/test/accessControl.test.js`
+- `src/dx-excshell-1/test/appRegistry.test.js`
+
+Behavior impact:
+- Behavior-preserving frontend refactor.
+- Added a shared feature registry for route path, component, sidebar section, sidebar label, icon, and access policy metadata.
+- `App.js` now renders all current route paths from the registry.
+- Registry-backed `AppRoute` entries pass `path` and `exact` to the immediate `Switch` child so React Router can match non-home routes correctly.
+- `SideBar.js` now renders the current visible sidebar labels and sections from the registry.
+- Currently hidden routes remain supported but were not newly exposed in the sidebar.
+- Access control now uses named groups and feature policy mappings while preserving known allow/deny decisions.
+- Local raw bootstrap now provides a non-secret mock IMS profile for a core demo user so access-controlled navigation is visible during local smoke testing outside Experience Cloud Shell.
+- Access control recognizes common IMS email field shapes and trims/case-normalizes the resolved email before checking policies.
+- Added a local React Refresh registration guard in `accessControl.js` because the dev web bundle can emit `$RefreshReg$` calls for this non-component module while Experience Shell has not defined that helper.
+- `logAccessControlInfo` no longer dumps full allowlists by default; full allowlists are only emitted when debug is enabled.
+- No route paths, visible sidebar labels, action names, Runtime settings, auth annotations, or backend behavior changed.
+
+Verification:
+- Passed focused: `node node_modules/jest/bin/jest.js --passWithNoTests src/dx-excshell-1/test/accessControl.test.js src/dx-excshell-1/test/appRegistry.test.js --runInBand` - 2 suites, 10 tests.
+- Passed: `npm test -- --runInBand` - 17 suites, 123 tests.
+- Passed: `aio app build` - built 39 actions and web assets.
+- Skipped with user approval: local browser smoke for sidebar route/navigation behavior; user will run it manually.
+
+Open questions:
+- Which currently hidden routes should become visible sidebar items in a future UI cleanup.
+
+Next recommended step:
+- Smoke test the sidebar sections, protected redirects, and representative public routes in local browser.
+- Proceed to M7: AEP backend helper cluster.
+
 ## 2026-04-29 - M8 Organization Config Cluster
 
 Branch: `codex/m8-org-config`

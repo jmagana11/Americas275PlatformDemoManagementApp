@@ -15,6 +15,7 @@ The app is a React Spectrum single-page application running in Experience Cloud 
 - Stores API Monitor inbound webhook events as individual Azure Blob JSON files under the session event prefix, while keeping the session JSON blob as a compatibility and summary record.
 - Resolves service credentials server-side through App Builder inputs/environment variables, not from frontend source.
 - Provides non-secret organization metadata from backend config so User Management, Content Template Migrator, and Segment Refresh share one org picker model.
+- Uses a shared frontend feature registry for route and sidebar metadata, plus named access-control groups for protected screens.
 
 ## Architecture
 
@@ -35,10 +36,12 @@ src/dx-excshell-1/web-src
 
 Important pieces:
 
-- `components/App.js` defines the route map.
-- `components/SideBar.js` defines the main navigation groups.
+- `appRegistry.js` defines route paths, components, sidebar sections, sidebar labels, icons, and access policy references.
+- `components/App.js` renders routes from the feature registry.
+- `components/SideBar.js` renders navigation groups from the feature registry.
+- `index.js` uses a non-secret mock IMS profile for local raw mode so access-controlled navigation is visible when the app is opened outside Experience Cloud Shell.
 - `utils/actionUrls.js` centralizes Runtime action URL generation.
-- `utils/accessControl.js` gates protected screens by IMS/user context.
+- `utils/accessControl.js` gates protected screens by IMS/user context using named groups, feature policies, and tolerant IMS identity resolution.
 - `utils/orgConfig.js` centralizes frontend org picker metadata and falls back to the current MA1HOL/POT5HOL labels if backend metadata cannot load.
 
 ### Backend Actions

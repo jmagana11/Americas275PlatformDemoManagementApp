@@ -27,7 +27,14 @@ try {
 function bootstrapRaw () {
   /* **here you can mock the exc runtime and ims objects** */
   const mockRuntime = { on: () => {} }
-  const mockIms = {}
+  const mockIms = {
+    profile: {
+      email: 'jmagana@adobe.com',
+      userId: 'local-development-user'
+    },
+    org: 'local-development-org',
+    token: ''
+  }
 
   // render the actual react application and pass along the runtime object to make it available to the App
   ReactDOM.render(

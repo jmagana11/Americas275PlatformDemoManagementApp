@@ -21,6 +21,7 @@ This file gives future agent sessions enough context to work safely without re-l
 - M3 is complete locally: API Monitor inbound webhooks now use per-event blobs with shared session lookup, deterministic read/clear behavior, stable UI row keys, and visible live refresh.
 - M4 is complete locally: API Monitor, API Proxy, and session-manager storage paths are documented, new/re-written session records use `storageSchemaVersion: 1`, and all three areas use shared schema/path normalization helpers while preserving existing blob paths.
 - M8 is complete locally: User Management, Content Template Migrator, Segment Refresh sandbox org pickers, org-aware auth actions, content templates, and sandbox lookups use the shared org config model and non-secret org metadata endpoint.
+- M5/M6 are complete locally: routes/sidebar navigation use a shared frontend feature registry, access control uses named groups plus feature policies without logging full allowlists by default, identity resolution handles common IMS email fields, and local raw bootstrap uses a non-secret mock IMS profile so protected navigation appears during local smoke testing outside Experience Cloud Shell.
 
 ## Non-Negotiables
 
@@ -59,6 +60,7 @@ src/dx-excshell-1/actions/shared/redaction.js
 src/dx-excshell-1/web-src/src/components/
 src/dx-excshell-1/web-src/src/components/App.js
 src/dx-excshell-1/web-src/src/components/SideBar.js
+src/dx-excshell-1/web-src/src/appRegistry.js
 src/dx-excshell-1/web-src/src/utils/accessControl.js
 src/dx-excshell-1/web-src/src/utils/actionUrls.js
 src/dx-excshell-1/test/
@@ -90,9 +92,9 @@ docs/REFACTOR_CHANGE_LOG.md
    - JSON response/error formatting is inconsistent.
 
 4. Frontend structure:
-   - Routes live in `App.js`; nav lives separately in `SideBar.js`.
-   - Access control email lists are duplicated by feature in `utils/accessControl.js`.
-   - Several large components need extraction only after behavior tests exist.
+   - Routes and sidebar nav now share `web-src/src/appRegistry.js`.
+   - Access control groups and feature policies now live in `utils/accessControl.js`.
+   - Several large components still need extraction only after behavior tests exist.
 
 ## Important App Areas
 
@@ -154,4 +156,4 @@ aio app build
 
 ## Suggested First Follow-Up
 
-Start with Milestone M7 in `docs/APP_REFACTOR_PLAN.md`: AEP backend helper cluster. M8 is complete locally, so M7 is now the next high-value backend helper cluster.
+Start with Milestone M7 in `docs/APP_REFACTOR_PLAN.md`: AEP backend helper cluster. M5/M6 and M8 are complete locally, so M7 is now the next high-value backend helper cluster.

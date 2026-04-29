@@ -207,6 +207,8 @@ Acceptance criteria:
 
 ### M5: Frontend Route, Nav, And Feature Registry
 
+Status: Completed locally on 2026-04-29.
+
 Goal: Reduce duplication between `App.js`, `SideBar.js`, access control, and help/docs.
 
 Current observations:
@@ -234,7 +236,18 @@ Acceptance criteria:
 - Protected routes still redirect consistently.
 - Tests or snapshots verify all registry routes render.
 
+Completed implementation:
+- Added `web-src/src/appRegistry.js` as the shared feature registry for route path, component, sidebar section, sidebar label, icon, and access policy metadata.
+- Migrated `App.js` to render routes from `appRegistry.js` while preserving all existing route paths and protected-route redirects.
+- Ensured registry-backed `AppRoute` children expose `path` and `exact` directly to `Switch` so non-home route matching works.
+- Migrated `SideBar.js` to render sidebar sections and nav items from `appRegistry.js` while preserving existing visible labels and section titles.
+- Kept currently hidden routes supported but not newly exposed in the sidebar.
+- Kept local raw-mode smoke testing useful by providing a non-secret mock IMS profile when the app runs outside Experience Cloud Shell.
+- Added registry tests for existing route paths, visible sidebar labels, and App/SideBar registry wiring.
+
 ### M6: Access Control Consolidation
+
+Status: Completed locally on 2026-04-29.
 
 Goal: Remove repeated hard-coded email lists and make feature access auditable.
 
@@ -252,6 +265,14 @@ Acceptance criteria:
 - Current allowed/denied behavior is unchanged for known users.
 - `logAccessControlInfo` does not dump full allowlists unless debug mode is enabled.
 - Tests cover representative emails.
+
+Completed implementation:
+- Replaced repeated feature allowlists with named groups and feature policy mappings in `utils/accessControl.js`.
+- Preserved current effective access for core demo users, extended utility users, file utility users, API documentation-only users, and admins.
+- Added tolerant IMS email resolution for common profile field names, with trimming and case normalization before policy checks.
+- Added a local React Refresh registration guard for the access-control module after the Experience Shell dev bundle emitted `$RefreshReg$` calls for this non-component module.
+- Changed default access-control logging to print user email and permission booleans only; full allowlists are emitted only when debug is enabled.
+- Added focused tests for representative allow/deny decisions, permission summary keys, and default/debug logging behavior.
 
 ### M7: AEP Backend Helper Cluster
 
@@ -688,13 +709,13 @@ Completed:
 - M3: API Monitor inbound webhook correctness with event-per-blob storage and stable UI selection.
 - M4: API Monitor, API Proxy, and session-manager storage schema alignment.
 - M8: Org-specific Adobe/Microsoft config cluster with backend org metadata and shared frontend org options.
+- M5/M6: Frontend route/sidebar feature registry and consolidated access-control groups/policies.
 
 Next recommended sequence:
 1. M7: AEP backend helper cluster.
-2. M5 and M6: Frontend registry and access control cleanup.
-3. M9, M10, M11: Tool-specific cleanup.
-4. M12: Smoke automation expansion.
-5. M13: Auth hardening and Runtime upgrade.
+2. M9, M10, M11: Tool-specific cleanup.
+3. M12: Smoke automation expansion.
+4. M13: Auth hardening and Runtime upgrade.
 
 ## Change Log Rule
 
