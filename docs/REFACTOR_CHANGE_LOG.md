@@ -27,6 +27,49 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-04-29 - Node 24 Runtime Upgrade
+
+Branch: `codex/node24-runtime-upgrade`
+
+Milestone: Roadmap - Auth Hardening And Runtime Upgrade, Runtime-only pass
+
+Intent:
+- Move the App Builder Runtime target from `nodejs:16` to `nodejs:24` in an isolated branch.
+- Verify current Adobe I/O Runtime support from official Adobe documentation before changing Runtime declarations.
+- Update the local toolchain guidance so CLI/build verification runs under Node 24.
+- Keep this pass Runtime/tooling-focused: no deployment, no route/action/package name changes, no auth annotation changes, and no feature refactors.
+
+Files changed:
+- `.nvmrc`
+- `AGENT.md`
+- `README.md`
+- `docs/APP_REFACTOR_PLAN.md`
+- `docs/REFACTOR_CHANGE_LOG.md`
+- `package.json`
+- `package-lock.json`
+- `src/dx-excshell-1/ext.config.yaml`
+
+Behavior impact:
+- Installed Node 24 locally through `nvm` and installed the Adobe AIO CLI under Node 24.
+- Confirmed `@adobe/aio-cli` is still `11.0.2`, and the Node 24 install has current core plugins with no pending `aio update` items.
+- Changed all 40 Runtime action declarations from `nodejs:16` to `nodejs:24`.
+- Added `.nvmrc` with Node 24 and narrowed the root package engine to `>=24 <25`.
+- Updated docs to treat Node 24 as the active Runtime/build target with `nodejs:22` only as a compatibility fallback.
+- No deployment, action rename, route rename, package rename, Runtime annotation change, auth annotation change, or feature refactor was made.
+
+Verification:
+- Confirmed official Adobe I/O Runtime documentation lists Node.js 24 support.
+- Passed under Node 24.15.0: `npm test -- --runInBand` - 19 suites, 135 tests.
+- Passed under Node 24.15.0 with the Node 24-installed AIO CLI: `aio app build` - built 40 actions and web assets.
+- Confirmed `aio update` under Node 24 reports 0 core plugin updates and 0 user plugin updates.
+- Not run: local `aio app run --open` smoke and Stage smoke; deployment remains manual.
+
+Open questions:
+- Whether any Stage-only smoke issue requires a short-term fallback to `nodejs:22`.
+
+Next recommended step:
+- Run manual local smoke if desired, then deploy to Stage through the release owner's manual path and smoke the main workflows before production.
+
 ## 2026-04-29 - AEP Profile Injector Unmount Warning Fix
 
 Branch: `codex/admin-ui-api-monitor-sessions`

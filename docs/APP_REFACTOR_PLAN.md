@@ -468,19 +468,21 @@ Acceptance criteria:
 
 Goal: Harden public actions and move Runtime off `nodejs:16` only after the refactors are stable.
 
+Status: Runtime-only Node 24 upgrade in progress on 2026-04-29.
+
 Current runtime guidance:
 - Node 20 reaches EOL on 2026-04-30, so it should not be the target runtime for a new migration.
-- Adobe I/O Runtime currently documents Node.js 24 and Node.js 22 support.
-- Preferred target: `nodejs:24`.
+- Adobe I/O Runtime documentation was checked on 2026-04-29 and lists Node.js 24 and Node.js 22 support.
+- Preferred and current branch target: `nodejs:24`.
 - Compatibility fallback: `nodejs:22` if `nodejs:24` is blocked by App Builder tooling, dependencies, or Stage smoke results.
-- CI should use the same major Node line as the intended App Builder runtime once the runtime upgrade branch starts.
+- CI and local build verification should use Node 24 while this Runtime upgrade branch is active.
 
 Implementation plan:
 1. Verify Adobe I/O Runtime support at implementation time using Adobe docs and `aio app build`.
 2. Audit dependencies for Node 24 compatibility, especially CommonJS actions using `node-fetch`, Azure SDK packages, Jest 27, and Parcel.
 3. Review all public actions and decide which should require Adobe auth.
 4. Add auth checks for public utility actions that mutate or proxy data.
-5. Upgrade CI Node version to the selected target major.
+5. Upgrade CI Node version to the selected target major if CI workflow files are present.
 6. Upgrade every action runtime in `src/dx-excshell-1/ext.config.yaml` in one isolated branch.
 7. Run local tests/build and Stage smoke before production.
 

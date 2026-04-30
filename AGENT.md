@@ -12,8 +12,8 @@ This file gives future agent sessions enough context to work safely without re-l
   - Root app config: `app.config.yaml`
   - Extension config: `src/dx-excshell-1/ext.config.yaml`
 - Runtime action count: 40 declared actions.
-- Runtime target is intentionally still `nodejs:16`.
-- Node runtime upgrade planning should target the newest Adobe I/O Runtime LTS kind supported at implementation time. As of 2026-04-29, Node 20 is at EOL on 2026-04-30, so do not plan a new migration to Node 20.
+- Runtime target is `nodejs:24`.
+- Local Runtime/build verification should run under Node 24.
 - Deployment workflows are manual-only. Merging to `main` should not deploy this app by itself.
 - PR #1 merged the production-safe cleanup and redaction baseline into `main`.
 - M1 is complete locally: shared Runtime config resolver, app-owned duplicate env dedupe, prompt-generation migration, and Campaign Trigger canonical credential resolution.
@@ -22,12 +22,12 @@ This file gives future agent sessions enough context to work safely without re-l
 - M4 is complete locally: API Monitor, API Proxy, and session-manager storage paths are documented, new/re-written session records use `storageSchemaVersion: 1`, and all three areas use shared schema/path normalization helpers while preserving existing blob paths.
 - M8 is complete locally: User Management, Content Template Migrator, Segment Refresh sandbox org pickers, org-aware auth actions, content templates, and sandbox lookups use the shared org config model and non-secret org metadata endpoint.
 - M5/M6 are complete locally: routes/sidebar navigation use a shared frontend feature registry, access control uses named groups plus feature policies without logging full allowlists by default, identity resolution handles common IMS email fields, and local raw bootstrap uses a non-secret mock IMS profile so protected navigation appears during local smoke testing outside Experience Cloud Shell.
-- Active administration milestone is in progress locally: dynamic feature access policies are backed by Azure Blob Storage, `jmagana@adobe.com` is the bootstrap administrator through the `administrator` Runtime input, and API Monitor sessions can be listed/described by existing API Monitor user identifier.
+- Active runtime milestone is in progress locally: Runtime declarations are being moved to `nodejs:24` in an isolated branch after the Administration/API Monitor session milestone was merged to `main`.
 
 ## Non-Negotiables
 
 - Do not change action names, package names, web action URLs, UI route paths, Runtime annotations, or `require-adobe-auth` values unless the user asks for that exact release step.
-- Do not upgrade Runtime from `nodejs:16` in the same PR as feature refactors. Plan that separately, and target `nodejs:24` if Adobe supports it in this app/workspace; use `nodejs:22` only as a compatibility fallback.
+- Keep Runtime upgrades isolated from feature refactors. The current target is `nodejs:24`; use `nodejs:22` only as a compatibility fallback if Stage smoke or App Builder tooling requires it.
 - Do not print, copy, or summarize credential values. Credential values should be treated as production values and managed through App Builder inputs, local `.env`, Adobe/Azure/Microsoft consoles, or GitHub secrets.
 - The user clarified that credentials should not be treated as compromised. Do not write PR notes or docs that claim compromise. Focus on source-control and secret-channel hygiene.
 - Keep behavior-preserving refactors small. One cluster per branch or conversation is preferred.
@@ -159,4 +159,4 @@ aio app build
 
 ## Suggested First Follow-Up
 
-Finish and smoke test the active Administration UI and API Monitor session-management milestone, then continue with roadmap items such as the AEP backend helper cluster.
+Smoke test the Node 24 Runtime branch in Stage after local build verification, then continue with roadmap items such as the AEP backend helper cluster.

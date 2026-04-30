@@ -66,7 +66,7 @@ The first cleanup pass intentionally keeps:
 - web action URLs unchanged
 - UI route paths unchanged
 - `require-adobe-auth` annotations unchanged
-- Runtime set to `nodejs:16`
+- Runtime set to `nodejs:24`
 
 ## Security And Configuration
 
@@ -134,6 +134,7 @@ API Monitor session descriptions are stored on `session.description` in the exis
 From the repository root:
 
 ```bash
+nvm use
 npm install
 npm test -- --runInBand
 aio app build
@@ -231,7 +232,7 @@ Keep follow-up work in small PRs:
 - centralize OpenAI/Azure OpenAI request handling beyond `prompt-generation`
 - centralize frontend action invocation and route/sidebar metadata
 - review hardening for public actions
-- plan a separate Runtime upgrade from `nodejs:16` to the newest supported Adobe I/O Runtime LTS kind, preferably `nodejs:24`
+- continue Stage smoke validation for the `nodejs:24` Runtime target, with `nodejs:22` only as a compatibility fallback
 
 ## Operational Notes
 

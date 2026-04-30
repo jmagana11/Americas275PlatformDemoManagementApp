@@ -36,7 +36,7 @@
     "e2e": "node node_modules/jest/bin/jest.js --collectCoverage=false --testRegex ./e2e"
   },
   "engines": {
-    "node": "^14.18 || ^16.13 || >=18"
+    "node": ">=24 <25"
   },
   "aio-app-builder-templates": [
     "@adobe/generator-app-excshell",
