@@ -1,4 +1,5 @@
 const { BlobServiceClient } = require('@azure/storage-blob');
+const { listDatasetLogs } = require('../shared/customActionStore');
 
 async function main(params) {
   const logger = params.__ow_logger || console;
@@ -15,6 +16,26 @@ async function main(params) {
         statusCode: 200,
         headers
       };
+    }
+
+    if (params.datasetId) {
+      try {
+        const result = await listDatasetLogs(params);
+        return {
+          statusCode: 200,
+          headers,
+          body: result
+        };
+      } catch (error) {
+        return {
+          statusCode: 400,
+          headers,
+          body: {
+            success: false,
+            error: error.message
+          }
+        };
+      }
     }
 
     // Get query parameters

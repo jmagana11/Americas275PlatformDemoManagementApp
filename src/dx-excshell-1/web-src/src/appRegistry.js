@@ -34,7 +34,7 @@ import URLShortener from './components/URLShortener'
 import AIPromptGenerator from './components/AIPromptGenerator'
 import AIApiDocumentation from './components/AIApiDocumentation'
 import FileManager from './components/FileManager'
-import ApiDocumentation from './components/ApiDocumentation'
+import CustomActionApis from './components/CustomActionApis'
 import JmeterTestwoFolders from './components/JmeterTestwoFolders'
 import JmeterTestWfolders from './components/JmeterTestWfolders'
 import CreateSandbox from './components/CreateSandbox'
@@ -238,7 +238,7 @@ export const appFeatures = Object.freeze([
   {
     key: 'apiDocumentation',
     path: '/ApiDocumentation',
-    component: ApiDocumentation,
+    component: CustomActionApis,
     accessCheck: hasApiDocumentationAccess,
     nav: {
       section: 'products',

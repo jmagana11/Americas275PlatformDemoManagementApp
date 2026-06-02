@@ -27,6 +27,32 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-06-02 - Custom Action API v2
+
+Branch: (local)
+Milestone: Custom Action APIs generic datasets
+Intent: Replace mode/bucket Custom Action workflow with CSV dataset upload, generic query API, per-user Azure storage, and simplified UI while preserving legacy `data-api` modes and action names.
+Files changed:
+- `src/dx-excshell-1/actions/shared/customActionStore.js` (new)
+- `src/dx-excshell-1/actions/upload-file/index.js`
+- `src/dx-excshell-1/actions/data-api/index.js`
+- `src/dx-excshell-1/actions/data-api-logs/index.js`
+- `src/dx-excshell-1/web-src/src/components/CustomActionApis.js` (new)
+- `src/dx-excshell-1/web-src/src/appRegistry.js`
+- `src/dx-excshell-1/test/customActionStore.test.js` (new)
+- `docs/CUSTOM_ACTION_API_V2.md` (new)
+Behavior impact:
+- v2 datasets under `custom-actions/{userKey}/{datasetId}/`; legacy `demos/` + `mode` unchanged.
+- UI route `/ApiDocumentation` now renders `CustomActionApis`; `ApiDocumentation.js` retained but unused.
+Verification:
+- `npm test -- --runInBand`
+- `aio app build`
+- Deploy with `aio app deploy --force-deploy` when Exchange publish would block routine deploy.
+Open questions:
+- Whether to remove legacy `ApiDocumentation.js` in a follow-up PR.
+Next recommended step:
+- Stage smoke: create dataset, test query, copy AJO payload, confirm legacy journey still works.
+
 ## 2026-04-29 - Node 24 Runtime Upgrade
 
 Branch: `codex/node24-runtime-upgrade`

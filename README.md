@@ -7,7 +7,7 @@ The app is a React Spectrum single-page application running in Experience Cloud 
 ## What The App Does
 
 - Provides AEP utilities for overview, sandbox/segment workflows, schema/dataset inspection, streaming connector operations, profile generation, profile injection, and sample data checks.
-- Provides AJO utilities for content template migration, campaign trigger testing, offer simulation, and custom action API reference workflows.
+- Provides AJO utilities for content template migration, campaign trigger testing, offer simulation, and generic Custom Action API datasets (CSV upload, query, AJO payload copy). See `docs/CUSTOM_ACTION_API_V2.md`.
 - Provides AI tooling for image analysis, prompt generation, image generation, and AI-assisted profile creation.
 - Provides operational utilities including API Monitor, API Proxy, URL Shortener, file upload/download, token/crypto helpers, and JMeter-related testing tools.
 - Stores API Monitor and API Proxy session data in Azure Blob Storage.

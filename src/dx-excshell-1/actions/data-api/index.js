@@ -1,5 +1,9 @@
 const { BlobServiceClient } = require('@azure/storage-blob');
 const { v4: uuidv4 } = require('uuid');
+const {
+  appendDatasetLog,
+  queryDataset
+} = require('../shared/customActionStore');
 
 async function main(params) {
   const logger = params.__ow_logger || console;
@@ -17,6 +21,61 @@ async function main(params) {
         statusCode: 200,
         headers
       };
+    }
+
+    if (params.datasetId) {
+      const requestData = {
+        datasetId: params.datasetId,
+        where: params.where,
+        limit: params.limit,
+        offset: params.offset,
+        format: params.format,
+        fields: params.fields,
+        datasetToken: params.datasetToken
+      };
+
+      try {
+        const responseData = await queryDataset(params);
+        await logApiRequest(params, requestData, responseData, startTime);
+        await appendDatasetLog(params, {
+          id: uuidv4(),
+          timestamp: new Date().toISOString(),
+          request: requestData,
+          response: responseData,
+          responseTime: Date.now() - startTime,
+          user: getUserIdentifier(params.__ow_headers || {})
+        });
+
+        return {
+          statusCode: 200,
+          headers,
+          body: responseData
+        };
+      } catch (error) {
+        const responseData = {
+          success: false,
+          error: error.message
+        };
+        await logApiRequest(params, requestData, responseData, startTime);
+        await appendDatasetLog(params, {
+          id: uuidv4(),
+          timestamp: new Date().toISOString(),
+          request: requestData,
+          response: responseData,
+          responseTime: Date.now() - startTime,
+          user: getUserIdentifier(params.__ow_headers || {})
+        });
+
+        const statusCode = error.message === 'Dataset not found' ? 404
+          : error.message === 'Invalid dataset token' ? 403
+            : 400;
+
+        return {
+          statusCode,
+          headers,
+          body: responseData
+        };
+      }
     }
 
     // Validate required parameters

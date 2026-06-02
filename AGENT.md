@@ -112,6 +112,7 @@ docs/REFACTOR_CHANGE_LOG.md
 - API Monitor: `ApiMonitor.js`, `api-monitor`, `webhook-receiver`
 - API Proxy: `ProxyManager.js`, `api-proxy`, `session-manager`
 - File/data utilities: `FileManager.js`, `DataManagement.js`, `upload-file`, `check-file-exists`, `data-api`, `data-api-logs`
+- Custom Action APIs (AJO): `CustomActionApis.js` on `/ApiDocumentation`, `actions/shared/customActionStore.js`; see `docs/CUSTOM_ACTION_API_V2.md`. Legacy `data-api` `mode` + `filename` contract unchanged.
 - URL shortener: `URLShortener.js`, `url-shortener`
 - JMeter: `JmeterTesting.js`, `JmeterTestwoFolders.js`, `JmeterTestWfolders.js`, `jmeterNFemailTracking`
 
