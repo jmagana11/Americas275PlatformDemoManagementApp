@@ -48,7 +48,7 @@ const expectedNavLabels = [
   'Custom Action APIs',
   'Content Migrator',
   'Campaign Trigger',
-  'Offer Simulator',
+  'Offer Decisioning Studio',
   'AI Prompt Generator',
   'AI AEP Profile Injector',
   'URL Shortener',

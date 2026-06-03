@@ -325,6 +325,36 @@ runtimeManifest:
           annotations:
             require-adobe-auth: false
             final: true
+        edge-interact:
+          function: actions/edge-interact/index.js
+          web: 'yes'
+          runtime: nodejs:24
+          annotations:
+            require-adobe-auth: true
+            final: true
+        offer-configs:
+          function: actions/offer-configs/index.js
+          web: 'yes'
+          runtime: nodejs:24
+          annotations:
+            require-adobe-auth: true
+            final: true
+        offer-preview:
+          function: actions/offer-preview/index.js
+          web: 'yes'
+          runtime: nodejs:24
+          annotations:
+            require-adobe-auth: false
+            final: true
+            web-cors: true
+            web-cors-origin: '*'
+        offer-schema-assistant:
+          function: actions/offer-schema-assistant/index.js
+          web: 'yes'
+          runtime: nodejs:24
+          annotations:
+            require-adobe-auth: true
+            final: true
         offer-simulator:
           function: actions/offer-simulator/index.js
           web: 'yes'

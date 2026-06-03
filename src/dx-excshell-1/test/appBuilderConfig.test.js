@@ -30,7 +30,7 @@ describe('App Builder configuration safety', () => {
   test('declares every deployed action with an existing function file', () => {
     const declaredActions = getDeclaredActions()
 
-    expect(declaredActions).toHaveLength(40)
+    expect(declaredActions).toHaveLength(44)
     for (const action of declaredActions) {
       expect(action.functionPath).toMatch(/^actions\/[^/]+\/index\.js$/)
       expect(fs.existsSync(path.join(extensionRoot, action.functionPath))).toBe(true)

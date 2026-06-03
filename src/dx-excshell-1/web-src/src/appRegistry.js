@@ -288,7 +288,7 @@ export const appFeatures = Object.freeze([
     component: OfferSimulator,
     nav: {
       section: 'products',
-      label: 'Offer Simulator',
+      label: 'Offer Decisioning Studio',
       icon: Gift
     }
   },
