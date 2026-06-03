@@ -774,12 +774,13 @@ const CustomActionApis = ({ ims }) => {
                   <Item key="query">
                     <View paddingTop="size-300">
                       <Form maxWidth="100%">
-                        <Flex direction="column" gap="size-200">
-                          <Grid columns={['1fr', '1fr', '1fr']} gap="size-200" alignItems="end">
+                        <Flex direction="column" gap="size-400">
+                          <Grid columns={['1fr', '1fr', '1fr']} gap="size-300">
                             <Picker
                               label="Filter column"
                               selectedKey={filterColumn || null}
                               onSelectionChange={setFilterColumn}
+                              width="100%"
                             >
                               {columnOptions.map((column) => (
                                 <Item key={column}>{column}</Item>
@@ -789,6 +790,7 @@ const CustomActionApis = ({ ims }) => {
                               label="Operator"
                               selectedKey={filterOp}
                               onSelectionChange={setFilterOp}
+                              width="100%"
                             >
                               {FILTER_OPS.map((op) => (
                                 <Item key={op.key}>{op.label}</Item>
@@ -798,27 +800,34 @@ const CustomActionApis = ({ ims }) => {
                               label="Filter value"
                               value={filterValue}
                               onChange={setFilterValue}
-                              description="Test with a literal; use AJO expressions in the copied body"
+                              width="100%"
                             />
                           </Grid>
-                          <Grid columns={['1fr', '2fr', 'auto']} gap="size-200" alignItems="end">
+                          <Text size="S">
+                            Use a literal value to test here. In AJO, use expressions such as
+                            {' '}${'${profile.identityMap.Email}'} in the copied request body.
+                          </Text>
+
+                          <Grid columns={['size-2400', 'minmax(0, 1fr)', 'auto']} gap="size-300" alignItems="end">
                             <NumberField
                               label="Limit"
                               value={queryLimit}
                               onChange={setQueryLimit}
                               minValue={1}
                               maxValue={100}
+                              width="100%"
                             />
                             <Picker
                               label="Response format"
                               selectedKey={queryFormat}
                               onSelectionChange={setQueryFormat}
+                              width="100%"
                             >
                               {FORMAT_OPTIONS.map((option) => (
                                 <Item key={option.key}>{option.label}</Item>
                               ))}
                             </Picker>
-                            <Flex gap="size-100" alignItems="end">
+                            <ButtonGroup marginBottom="size-100">
                               <Button variant="primary" onPress={runTest} isDisabled={testing}>
                                 <Play />
                                 <Text>{testing ? 'Running…' : 'Run test'}</Text>
@@ -827,7 +836,7 @@ const CustomActionApis = ({ ims }) => {
                                 <Delete />
                                 <Text>Delete</Text>
                               </Button>
-                            </Flex>
+                            </ButtonGroup>
                           </Grid>
                         </Flex>
                       </Form>
