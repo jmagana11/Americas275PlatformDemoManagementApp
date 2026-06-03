@@ -16,7 +16,7 @@ async function main(params) {
   }
 
   const operation = (params.operation || '').toString().trim().toLowerCase();
-  if (['create', 'list', 'delete'].includes(operation)) {
+  if (['create', 'list', 'delete', 'replace'].includes(operation)) {
     try {
       const result = await handleUploadOperation(params);
       const statusCode = result.success === false ? 400 : 200;

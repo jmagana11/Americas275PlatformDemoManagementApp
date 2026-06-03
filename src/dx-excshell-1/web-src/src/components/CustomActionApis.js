@@ -414,8 +414,15 @@ const CustomActionApis = ({ ims }) => {
         const columns = Object.keys(rows[0])
         setParsedRows(rows)
         setParsedColumns(columns)
-        setPrimaryKey(columns[0] || '')
-        if (!datasetName.trim()) {
+        const existingKey = selectedDataset?.primaryKey
+        if (existingKey && columns.includes(existingKey)) {
+          setPrimaryKey(existingKey)
+        } else {
+          setPrimaryKey(columns[0] || '')
+        }
+        if (selectedDataset?.name) {
+          setDatasetName(selectedDataset.name)
+        } else if (!datasetName.trim()) {
           setDatasetName(file.name.replace(/\.csv$/i, ''))
         }
       } catch (error) {
@@ -423,6 +430,45 @@ const CustomActionApis = ({ ims }) => {
       }
     }
     reader.readAsText(file)
+  }
+
+  const replaceDatasetData = async () => {
+    if (!parsedRows?.length || !selectedDataset?.datasetId) {
+      setUploadError('Select a dataset and upload a CSV file first')
+      return
+    }
+
+    setUploading(true)
+    setUploadError(null)
+
+    try {
+      const response = await actionWebInvoke(uploadUrl, buildImsHeaders(ims), {
+        operation: 'replace',
+        datasetId: selectedDataset.datasetId,
+        name: datasetName.trim() || selectedDataset.name,
+        primaryKey: primaryKey || undefined,
+        ownerEmail: userEmail,
+        userEmail,
+        fileData: parsedRows
+      })
+      const body = response.body || response
+      if (!body.success) {
+        throw new Error(body.error || 'Replace failed')
+      }
+
+      setParsedRows(null)
+      setParsedColumns([])
+      await loadDatasets()
+      if (body.dataset) {
+        setSelectedDataset(body.dataset)
+        setFilterColumn(body.dataset.primaryKey || body.dataset.columns?.[0] || '')
+      }
+      setCopyFeedback('Dataset data replaced. datasetId and token are unchanged for AJO.')
+    } catch (error) {
+      setUploadError(error.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   const createDataset = async () => {
@@ -541,9 +587,9 @@ const CustomActionApis = ({ ims }) => {
           <Divider size="S" />
 
           <View>
-            <Heading level={2}>Create a dataset</Heading>
+            <Heading level={2}>Upload data</Heading>
             <Text marginTop="size-100" marginBottom="size-200">
-              Upload a CSV file. Each dataset gets a unique ID and token for AJO to call at runtime.
+              Create a new dataset for AJO, or replace the CSV for the active dataset to keep the same datasetId and token while testing.
             </Text>
 
             <Form maxWidth="100%">
@@ -611,14 +657,32 @@ const CustomActionApis = ({ ims }) => {
                   <Text size="S">Primary key is the default filter column for AJO runtime calls.</Text>
                 )}
 
-                <Flex marginTop="size-100">
-                  <Button
-                    variant="cta"
-                    onPress={createDataset}
-                    isDisabled={!parsedRows?.length || uploading}
-                  >
-                    {uploading ? 'Creating…' : 'Create dataset'}
-                  </Button>
+                {selectedDataset && parsedRows && (
+                  <Well>
+                    <Text size="S">
+                      Replacing <strong>{selectedDataset.name}</strong> keeps datasetId and datasetToken
+                      unchanged so AJO Custom Actions do not need reconfiguration.
+                    </Text>
+                  </Well>
+                )}
+
+                <Flex marginTop="size-100" gap="size-200" wrap>
+                  <ButtonGroup>
+                    <Button
+                      variant="cta"
+                      onPress={createDataset}
+                      isDisabled={!parsedRows?.length || uploading}
+                    >
+                      {uploading ? 'Saving…' : 'Create new dataset'}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onPress={replaceDatasetData}
+                      isDisabled={!parsedRows?.length || !selectedDataset?.datasetId || uploading}
+                    >
+                      {uploading ? 'Saving…' : 'Replace active dataset'}
+                    </Button>
+                  </ButtonGroup>
                 </Flex>
 
                 {uploadError && (

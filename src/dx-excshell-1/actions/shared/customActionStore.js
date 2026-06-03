@@ -421,6 +421,90 @@ async function listDatasets(params) {
   }
 }
 
+async function replaceDataset(params, input = {}) {
+  const headers = params.__ow_headers || {}
+  const userKey = resolveUserKey(headers, params)
+  const datasetId = (params.datasetId || input.datasetId || '').toString().trim()
+
+  if (!datasetId) {
+    throw new Error('datasetId is required')
+  }
+
+  if (!input.fileData) {
+    throw new Error('fileData is required')
+  }
+
+  let blobServiceClient
+  try {
+    blobServiceClient = createBlobServiceClient(params)
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Azure Blob Storage is not configured'
+    }
+  }
+
+  const manifest = await readManifest(blobServiceClient, userKey, datasetId)
+  if (!manifest) {
+    return {
+      success: false,
+      error: 'Dataset not found'
+    }
+  }
+
+  const rows = normalizeRows(input.fileData)
+  const columns = Object.keys(rows[0])
+  const primaryKey = input.primaryKey && columns.includes(input.primaryKey)
+    ? input.primaryKey
+    : (manifest.primaryKey && columns.includes(manifest.primaryKey)
+      ? manifest.primaryKey
+      : (columns[0] || null))
+
+  const defaultQuery = {
+    limit: manifest.defaultQuery?.limit ?? 1,
+    format: manifest.defaultQuery?.format ?? 'object'
+  }
+
+  if (primaryKey) {
+    defaultQuery.where = {
+      column: primaryKey,
+      op: manifest.defaultQuery?.where?.op || 'eq',
+      value: manifest.defaultQuery?.where?.value || '${profile.identityMap.Email}'
+    }
+  }
+
+  const updatedManifest = {
+    ...manifest,
+    name: (input.name || params.name || manifest.name).toString().trim(),
+    updated: new Date().toISOString(),
+    columns,
+    rowCount: rows.length,
+    primaryKey,
+    defaultQuery,
+    ajoSnippet: buildAjoSnippet(manifest.datasetId, defaultQuery, manifest.datasetToken)
+  }
+
+  await writeCsv(blobServiceClient, userKey, datasetId, rows)
+  await writeManifest(blobServiceClient, updatedManifest)
+
+  return {
+    success: true,
+    replaced: true,
+    dataset: {
+      datasetId: manifest.datasetId,
+      datasetToken: manifest.datasetToken,
+      name: updatedManifest.name,
+      columns,
+      rowCount: updatedManifest.rowCount,
+      primaryKey,
+      defaultQuery,
+      ajoSnippet: updatedManifest.ajoSnippet,
+      created: manifest.created,
+      updated: updatedManifest.updated
+    }
+  }
+}
+
 async function deleteDataset(params) {
   const headers = params.__ow_headers || {}
   const userKey = resolveUserKey(headers, params)
@@ -563,6 +647,13 @@ async function handleUploadOperation(params) {
       return listDatasets(params)
     case 'delete':
       return deleteDataset(params)
+    case 'replace':
+      return replaceDataset(params, {
+        datasetId: params.datasetId,
+        fileData: params.fileData,
+        name: params.name,
+        primaryKey: params.primaryKey
+      })
     default:
       throw new Error(`Unsupported custom action operation: ${operation}`)
   }
@@ -589,5 +680,6 @@ module.exports = {
   normalizeRows,
   queryDataset,
   queryRows,
+  replaceDataset,
   resolveUserKey
 }

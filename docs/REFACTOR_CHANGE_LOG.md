@@ -27,6 +27,21 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-06-02 - Custom Action dataset replace
+
+Branch: main
+Milestone: Custom Action APIs
+Intent: Allow CSV refresh in place so datasetId and datasetToken stay stable for AJO testing.
+Files changed:
+- `src/dx-excshell-1/actions/shared/customActionStore.js`
+- `src/dx-excshell-1/actions/upload-file/index.js`
+- `src/dx-excshell-1/web-src/src/components/CustomActionApis.js`
+- `docs/CUSTOM_ACTION_API_V2.md`
+Behavior impact:
+- `upload-file` operation `replace` overwrites data.csv and manifest metadata; IDs and tokens unchanged.
+Verification:
+- `npm test -- --runInBand`
+
 ## 2026-06-02 - Custom Action API v2
 
 Branch: (local)

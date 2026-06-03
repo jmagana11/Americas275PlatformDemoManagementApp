@@ -19,6 +19,7 @@ custom-actions/{userKey}/{datasetId}/logs/{requestId}.json
 | operation | Purpose |
 |-----------|---------|
 | `create` | Upload rows (`fileData`), optional `name`, `primaryKey`, `ownerEmail` |
+| `replace` | Overwrite `data.csv` for `datasetId`; keeps `datasetId` and `datasetToken` (AJO config unchanged) |
 | `list` | List datasets for the current user |
 | `delete` | Delete dataset (`datasetId`) |
 
@@ -69,8 +70,9 @@ Route `/ApiDocumentation` (sidebar: **Custom Action APIs**) uses `CustomActionAp
 ## AJO Custom Action
 
 1. Create a dataset in the app (Custom Action APIs screen).
-2. Copy the generated POST URL and JSON body (includes `datasetToken`).
-3. Map filter values to `${profile...}` or `${event...}` expressions as needed.
-4. Test from the app, then configure the Custom Action in AJO with the same body shape.
+2. While testing, use **Replace active dataset** to upload new CSV data without changing `datasetId` or `datasetToken`.
+3. Copy the generated POST URL and JSON body (includes `datasetToken`).
+4. Map filter values to `${profile...}` or `${event...}` expressions as needed.
+5. Test from the app, then configure the Custom Action in AJO with the same body shape.
 
 Owners may call `data-api` without `datasetToken` when IMS identity matches the dataset owner. Public journey calls should always send `datasetToken`.
