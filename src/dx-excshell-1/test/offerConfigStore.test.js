@@ -2,6 +2,7 @@ const { Readable } = require('stream')
 const {
   deleteOfferConfig,
   getDraftConfigPath,
+  getOfferConfig,
   getPublishedConfigPath,
   getPublishedOfferConfig,
   listOfferConfigs,
@@ -150,6 +151,51 @@ describe('Offer config Azure Blob store', () => {
       publicId: null,
       publishedAt: null
     })
+  })
+
+  test('persists the design and surfaces it in the list summary and public config', async () => {
+    const mocks = createMemoryBlobService()
+    const designConfig = {
+      ...baseConfig,
+      id: 'config-design',
+      design: {
+        type: 'carousel',
+        items: [{ title: 'One' }, { title: 'Two' }],
+        style: { theme: 'dark' },
+        layout: {}
+      }
+    }
+
+    const saved = await saveOfferConfig(mocks.blobServiceClient, designConfig, owner)
+    expect(saved.config.design).toEqual({
+      type: 'carousel',
+      items: [{ title: 'One' }, { title: 'Two' }],
+      style: { theme: 'dark' },
+      layout: {}
+    })
+
+    // Round-trips through get.
+    const { config } = await getOfferConfig(mocks.blobServiceClient, 'config-design', owner)
+    expect(config.design.type).toBe('carousel')
+    expect(config.design.items).toHaveLength(2)
+
+    // Summary exposes experience type + item count for the Overview table.
+    const configs = await listOfferConfigs(mocks.blobServiceClient, owner)
+    expect(configs[0]).toEqual(expect.objectContaining({
+      id: 'config-design',
+      experienceType: 'carousel',
+      itemCount: 2
+    }))
+
+    // Published public copy carries the design too.
+    const published = await publishOfferConfig(mocks.blobServiceClient, 'config-design', owner)
+    expect(published.publishedConfig.design.type).toBe('carousel')
+  })
+
+  test('defaults design to an empty single-type shape when none is provided', async () => {
+    const mocks = createMemoryBlobService()
+    const saved = await saveOfferConfig(mocks.blobServiceClient, baseConfig, owner)
+    expect(saved.config.design).toEqual({ type: 'card', items: [], style: {}, layout: {} })
   })
 
   test('deletes draft configs and any published public copy', async () => {

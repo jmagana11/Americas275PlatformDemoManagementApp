@@ -7,8 +7,10 @@ const fetch = require('node-fetch')
 const { createBlobServiceClient } = require('../shared/blobStore')
 const {
   DEFAULT_PERSONALIZATION_SCHEMAS,
+  applyContextOverrides,
   buildEdgeInteractRequest,
   buildPropositionEventRequest,
+  flattenXdmPaths,
   normalizeEdgeResponse
 } = require('../shared/offerDecisioning')
 const { getPublishedOfferConfig } = require('../shared/offerConfigStore')
@@ -50,15 +52,26 @@ function getPublicId(params = {}) {
 
 function createPreviewInteractInput(config = {}, params = {}) {
   const edge = config.edge || {}
+  const allowedSurfaces = Array.isArray(edge.surfaces) ? edge.surfaces : []
+  const requestedSurface = typeof params.surface === 'string' ? params.surface.trim() : ''
+  // Public endpoint guardrail: only honor a caller-supplied surface if it is one
+  // the saved config already allows; otherwise fall back to the full saved list.
+  const surfaces = requestedSurface && allowedSurfaces.includes(requestedSurface)
+    ? [requestedSurface]
+    : allowedSurfaces
+  // Public endpoint guardrail: only apply context overrides for fields the saved
+  // config already defines; unknown paths are ignored (no arbitrary XDM injection).
+  const allowedContextPaths = flattenXdmPaths(edge.xdmDefaults || {}).map((entry) => entry.path)
+  const xdm = applyContextOverrides(edge.xdmDefaults || {}, params.context, allowedContextPaths)
   return {
     datastreamId: edge.datastreamId,
     identityNamespace: edge.identityNamespace,
     identityValue: params.identityValue,
     mode: edge.mode,
     decisionScopes: edge.decisionScopes,
-    surfaces: edge.surfaces,
+    surfaces,
     schemas: [...DEFAULT_PERSONALIZATION_SCHEMAS],
-    xdm: edge.xdmDefaults,
+    xdm,
     preserveState: edge.preserveState,
     stateEntries: edge.preserveState ? params.stateEntries : []
   }
@@ -131,8 +144,31 @@ async function trackPublishedOfferEvent(config, params, options = {}) {
   }
 }
 
-function getStandalonePage(publicId) {
+function getStandalonePage(publicId, options = {}) {
   const safePublicId = escapeHtml(publicId)
+  const surfaces = Array.isArray(options.surfaces) ? options.surfaces : []
+  const showSurface = options.mode === 'surfaces' && surfaces.length > 0
+  const surfaceField = showSurface
+    ? `
+      <label>
+        Surface
+        <select id="surface-value" name="surface">
+          ${surfaces.map((surface) => `<option value="${escapeHtml(surface)}">${escapeHtml(surface)}</option>`).join('')}
+        </select>
+      </label>`
+    : ''
+  const contextFields = Array.isArray(options.contextFields) ? options.contextFields : []
+  const contextFieldsHtml = contextFields.length > 0
+    ? `
+      <div class="context-fields">
+        <p class="context-title">Context</p>
+        ${contextFields.map((field) => `
+        <label>
+          ${escapeHtml(field.label || field.path)}
+          <input class="context-input" data-context-path="${escapeHtml(field.path)}" value="${escapeHtml(field.value === undefined || field.value === null ? '' : String(field.value))}" autocomplete="off" />
+        </label>`).join('')}
+      </div>`
+    : ''
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -144,11 +180,13 @@ function getStandalonePage(publicId) {
     main { margin: 0 auto; max-width: 1100px; padding: 28px 18px 42px; }
     form { align-items: end; display: grid; gap: 12px; grid-template-columns: minmax(220px, 1fr) auto; margin-bottom: 22px; }
     label { display: grid; gap: 6px; font-size: 14px; font-weight: 700; }
-    input { border: 1px solid #b8b8b8; border-radius: 6px; font: inherit; padding: 10px 12px; }
+    input, select { border: 1px solid #b8b8b8; border-radius: 6px; font: inherit; padding: 10px 12px; background: #fff; }
     button { background: #1473e6; border: 0; border-radius: 6px; color: #fff; cursor: pointer; font: inherit; font-weight: 700; min-height: 40px; padding: 0 16px; }
     button:disabled { cursor: wait; opacity: .65; }
     .status { color: #666; margin-bottom: 14px; min-height: 20px; }
     .error { color: #b40000; }
+    .context-fields { grid-column: 1 / -1; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .context-title { grid-column: 1 / -1; margin: 4px 0 0; font-size: 13px; font-weight: 700; color: #444; }
     ${getRendererStyles()}
     @media (max-width: 620px) { form { grid-template-columns: 1fr; } button { width: 100%; } }
   </style>
@@ -159,7 +197,7 @@ function getStandalonePage(publicId) {
       <label>
         Test profile identity
         <input id="identity-value" name="identityValue" autocomplete="off" required />
-      </label>
+      </label>${surfaceField}${contextFieldsHtml}
       <button id="submit-button" type="submit">Retrieve offer</button>
     </form>
     <div id="status" class="status"></div>
@@ -170,6 +208,20 @@ function getStandalonePage(publicId) {
     const endpoint = window.location.href.split('?')[0];
     let stateEntries = [];
     let latestPropositions = [];
+
+    function getSurface() {
+      const surfaceEl = document.getElementById('surface-value');
+      return surfaceEl ? surfaceEl.value : '';
+    }
+
+    function getContext() {
+      const context = {};
+      document.querySelectorAll('.context-input').forEach((el) => {
+        const path = el.getAttribute('data-context-path');
+        if (path) { context[path] = el.value; }
+      });
+      return context;
+    }
 
     async function postPayload(payload) {
       const response = await fetch(endpoint, {
@@ -213,7 +265,7 @@ function getStandalonePage(publicId) {
       output.innerHTML = '';
 
       try {
-        const data = await postPayload({ identityValue, stateEntries });
+        const data = await postPayload({ identityValue, surface: getSurface(), context: getContext(), stateEntries });
         stateEntries = data.stateEntries || [];
         latestPropositions = (data.normalized && data.normalized.propositions) || [];
         output.innerHTML = data.renderedHtml || '';
@@ -251,7 +303,35 @@ async function main(params) {
 
   try {
     if (method === 'get') {
-      return htmlResponse(getStandalonePage(getPublicId(mergedParams)))
+      const pagePublicId = getPublicId(mergedParams)
+      let pageOptions = {}
+      if (pagePublicId) {
+        try {
+          const blobServiceClient = createBlobServiceClient(params)
+          const pageConfig = await getPublishedOfferConfig(blobServiceClient, pagePublicId)
+          if (pageConfig && pageConfig.publish && pageConfig.publish.enabled && pageConfig.edge) {
+            const tenantPrefix = pageConfig.edge.contextTenantField
+              ? `${pageConfig.edge.contextTenantField}.`
+              : ''
+            const contextFields = flattenXdmPaths(pageConfig.edge.xdmDefaults || {}).map((entry) => ({
+              path: entry.path,
+              // Show the tenant-stripped path as the label; keep the full path as the key.
+              label: tenantPrefix && entry.path.startsWith(tenantPrefix)
+                ? entry.path.slice(tenantPrefix.length)
+                : entry.path,
+              value: entry.value
+            }))
+            pageOptions = {
+              mode: pageConfig.edge.mode,
+              surfaces: Array.isArray(pageConfig.edge.surfaces) ? pageConfig.edge.surfaces : [],
+              contextFields
+            }
+          }
+        } catch (pageError) {
+          logger.info(`Preview page rendered without saved config options: ${pageError.message}`)
+        }
+      }
+      return htmlResponse(getStandalonePage(pagePublicId, pageOptions))
     }
 
     if (method !== 'post') {

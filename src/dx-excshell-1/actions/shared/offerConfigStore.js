@@ -81,6 +81,16 @@ function normalizeEdgeConfig(edge = {}) {
   }
 }
 
+function normalizeDesign(input = {}) {
+  const design = input && typeof input === 'object' && !Array.isArray(input) ? input : {}
+  return {
+    type: String(design.type || 'card'),
+    items: Array.isArray(design.items) ? design.items : [],
+    style: design.style && typeof design.style === 'object' && !Array.isArray(design.style) ? design.style : {},
+    layout: design.layout && typeof design.layout === 'object' && !Array.isArray(design.layout) ? design.layout : {}
+  }
+}
+
 function normalizeOfferConfig(input = {}, owner = {}, existingConfig = {}, options = {}) {
   const timestamp = options.timestamp || new Date().toISOString()
   const id = sanitizePathPart(input.id || existingConfig.id || uuidv4())
@@ -100,6 +110,7 @@ function normalizeOfferConfig(input = {}, owner = {}, existingConfig = {}, optio
     ownerOrgId: owner.orgId || existingConfig.ownerOrgId || 'default_org',
     edge: normalizeEdgeConfig(input.edge || existingConfig.edge || {}),
     template: normalizeTemplate(input.template || existingConfig.template || {}),
+    design: normalizeDesign(input.design || existingConfig.design || {}),
     publish: {
       enabled: Boolean(hasPublishEnabled ? publishInput.enabled : existingPublish.enabled),
       publicId: hasPublicId ? publishInput.publicId : (existingPublish.publicId || null),
@@ -120,6 +131,7 @@ function createPublishedConfig(config, options = {}) {
     ownerOrgId: config.ownerOrgId,
     edge: config.edge,
     template: config.template,
+    design: config.design || normalizeDesign({}),
     publish: {
       enabled: true,
       publicId,
@@ -137,6 +149,10 @@ function summarizeConfig(config = {}) {
     mode: config.edge && config.edge.mode,
     datastreamId: config.edge && config.edge.datastreamId,
     templateType: config.template && config.template.type,
+    experienceType: config.design && config.design.type,
+    itemCount: config.design && Array.isArray(config.design.items) ? config.design.items.length : 0,
+    // Full design is included so the Overview preview popover can render without a second fetch.
+    design: config.design || normalizeDesign({}),
     publish: config.publish || { enabled: false, publicId: null, publishedAt: null }
   }
 }

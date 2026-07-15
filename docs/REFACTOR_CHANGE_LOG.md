@@ -27,6 +27,194 @@ Open questions:
 Next recommended step:
 ```
 
+## 2026-07-14 - Offer Decisioning Studio: fold Request + Inspect into one step
+
+Branch: jmagana11/schema-assistant-offer-decisioning-e9ff07
+Milestone: Offer Decisioning Studio (OfferSimulator)
+Intent: Combine Request and Inspect so the user builds the request and sees the results in one place
+without switching tabs.
+Files changed:
+- `src/dx-excshell-1/web-src/src/components/OfferSimulator.js`
+Behavior impact:
+- Steps are now Design -> **Request & inspect** -> Publish (3 steps, was 4). `renderRequestTab`/
+  `renderInspectTab` were split into body helpers (`renderRequestBody`, `renderInspectBody`) and
+  composed by `renderRequestInspectTab`: the request builder on top, a "Results" divider, then the
+  summary + resolved offers + visual preview + raw/debug below — under one step action bar.
+- Send request (and Load sample) no longer switches tabs; results render inline on the same step.
+- `STEP_ORDER`/`STEP_LABELS` updated; step counter now reads "Step N of 3".
+- The step action bar (with the "Step N of 3" indicator) is now shown on every step including
+  **Publish** ("Step 3 of 3", Save only — no Save & continue on the last step). The Publish form's
+  redundant "Save config" button was removed (the bar's Save covers it) and "Publish preview" is now
+  the form's primary CTA.
+Verification:
+- `npm test -- --runInBand` (26 suites / 180 tests pass); `aio app build` (44 actions + web clean).
+- Local UI: Create shows only Overview + Design with "Step 1 of 3"; no console errors. (The merged
+  Request & inspect step unlocks after a backend save, which local mock mode 401s, so it was verified
+  by build + code.)
+
+## 2026-07-14 - Offer Decisioning Studio: stepper flow, preview popover, open-public-site
+
+Branch: jmagana11/schema-assistant-offer-decisioning-e9ff07
+Milestone: Offer Decisioning Studio (OfferSimulator)
+Intent: Make the editing tabs feel like sequential steps, keep the primary action above the fold, and
+refine the Overview row affordances.
+Files changed:
+- `src/dx-excshell-1/actions/shared/offerConfigStore.js` (include full `design` in summarizeConfig)
+- `src/dx-excshell-1/web-src/src/components/OfferSimulator.js`
+Behavior impact:
+- Editing tabs now reveal progressively: after Create only **Design** shows; each next step
+  (Request -> Inspect -> Publish) unlocks when the user presses **Save & continue** on the current
+  step (`unlockedStep` state). Loading an existing experience unlocks all steps; sending a request
+  unlocks Inspect.
+- Each step has a sticky action bar at the top (above the fold): a "Step N of 4" badge, a **Save**
+  button (save progress, stay) and a **Save & continue** button (save + reveal/advance to the next
+  step). The old below-the-fold Design save button was removed. Save & continue from Request enforces
+  required context fields, same as Send request.
+- Overview row **Preview** is now a `DialogTrigger type="popover"` (a rich anchored quick-look) that
+  renders the experience from the row's design (summarizeConfig now returns the full `design`, so no
+  second fetch). The old full-screen preview modal + its state were removed.
+  (Follow-up: the row Preview button/popover was later removed entirely per feedback — the Overview
+  Actions column now has only the 3-dot menu. `summarizeConfig` still returns `design` for the
+  experienceType/itemCount summary.)
+- Overview 3-dot menu gains **Open public site** (opens the published standalone page in a new tab);
+  Copy public URL remains for copying the link.
+Verification:
+- `npm test -- --runInBand` (26 suites / 180 tests pass).
+- `aio app build` (44 actions + web assets build clean).
+- Local UI smoke (Browser pane): Create shows only Overview + Design; the sticky Save / Save &
+  continue bar renders above the fold; no console errors. Save-dependent advance and populated-row
+  popover/menu need a live backend (local mock 401s) so were verified by build + code.
+Open questions:
+- None outstanding.
+
+## 2026-07-14 - Offer Decisioning Studio: Overview experience manager, create-first flow, Publish summary
+
+Branch: jmagana11/schema-assistant-offer-decisioning-e9ff07
+Milestone: Offer Decisioning Studio (OfferSimulator)
+Intent: Turn the studio into an experience manager — an Overview table of saved experiences with
+per-row actions, a create-first flow (working tabs hidden until you create/open), a Design-tab Save
+that advances the flow, and a Publish summary. Requires treating an experience as a first-class saved
+object that includes its Design content.
+Files changed:
+- `src/dx-excshell-1/actions/shared/offerConfigStore.js` (normalizeDesign; design in normalizeOfferConfig
+  + createPublishedConfig; experienceType/itemCount in summarizeConfig)
+- `src/dx-excshell-1/web-src/src/components/OfferSimulator.js`
+- `src/dx-excshell-1/test/offerConfigStore.test.js`
+Behavior impact:
+- Saved experiences now persist their `design` (card/carousel/grid/hero content). Client
+  `buildConfigPayload` sends `design`; `handleLoadConfig` restores it; the list summary exposes
+  `experienceType`/`itemCount`. Backward compatible (design defaults to an empty card shape).
+- New **Overview** tab (default) with a `TableView` of experiences: Name, Type, Decision input,
+  Status (published/draft), Updated, Actions. Each row has an elegant Preview button (opens an in-app
+  modal of the authored experience via the shared renderPreview; falls back to the published
+  standalone page when there is no design) and an `ActionMenu` 3-dot menu: Publish, Copy public URL,
+  Duplicate, Load, Delete (Delete confirms via `AlertDialog`). Top-right blue "Create experience" CTA.
+- Create-first flow: `editing` state (default false) gates the working tabs — only Overview shows
+  until Create/Load/Duplicate. "Create experience" resets state, reveals Design → Request → Inspect →
+  Publish, and lands on Design; Load lands on Request. Design tab gains a blue "Save & continue"
+  (persists then advances to Request).
+- Publish tab gains a read-only "Experience summary" (name, experience type + item count, decision
+  input + target surface, datastream, identity namespace, context on/off + counts, template, status);
+  the old select-to-act "Saved configurations" panel was removed (superseded by the Overview table).
+- Duplicate is client-side (getConfig → saveConfig as a new id, "Copy of …", unpublished). No new
+  backend operation; no action names/URLs/routes changed.
+Verification:
+- `npm test -- --runInBand` (26 suites / 180 tests pass, incl. offerConfigStore design round-trip).
+- `aio app build` (44 actions + web assets build clean).
+Open questions:
+- None outstanding.
+Next recommended step:
+- Optional: paginate/search the Overview table if experience counts grow large.
+
+## 2026-07-14 - Offer Decisioning Studio: optional context, required-field gating, published context editing, section guidance
+
+Branch: jmagana11/schema-assistant-offer-decisioning-e9ff07
+Milestone: Offer Decisioning Studio (OfferSimulator)
+Intent: Make XDM context opt-in (a decision request is minimal per Adobe Edge decisioning), enforce
+schema-required fields when context is sent, let the published preview customer edit defined context
+fields, and add per-section guidance popovers.
+Files changed:
+- `src/dx-excshell-1/web-src/src/utils/offerContext.js` (new; getMissingRequiredContextFields)
+- `src/dx-excshell-1/web-src/src/components/OfferSimulator.js`
+- `src/dx-excshell-1/actions/offer-preview/index.js`
+- `src/dx-excshell-1/actions/shared/offerDecisioning.js` (flattenXdmPaths, applyContextOverrides)
+- `src/dx-excshell-1/test/offerContext.test.js` (new), `offerDecisioning.test.js`, `offerPreview.test.js`
+Behavior impact:
+- Request tab: new "Include context data" toggle (default OFF). Off = minimal event (identity +
+  scope/surface, empty xdm) and the Schema assistant + XDM/context panel are hidden. On = they appear;
+  the config persists `edge.xdmDefaults` only when on.
+- When context is on and the selected schema has required fields, those rows are auto-seeded and marked;
+  Send is blocked with an inline error until each required field has a value
+  (getMissingRequiredContextFields).
+- Published preview page renders one editable input per saved context field (pre-filled). Overrides are
+  applied via applyContextOverrides against a flattenXdmPaths allow-list and coerced to the saved value
+  type; unknown paths are ignored (public-endpoint guardrail, same shape as surface selection).
+- Per-section info popovers (React Spectrum ContextualHelp variant="info", the JMeter idiom) added to
+  Design, Request (datastream, decision input, surfaces, schema assistant, context), Inspect (visual
+  preview), and Publish — purpose + how-to + Experience League doc link, from a SECTION_GUIDANCE map.
+- No action names, URLs, routes, runtime annotations, or config-store contracts changed
+  (`edge.xdmDefaults`/`contextTenantField` were already persisted).
+Verification:
+- `npm test -- --runInBand` (26 suites / 178 tests pass).
+- `aio app build` (44 actions + web assets build clean; webpack-config workaround in place).
+Open questions:
+- None outstanding; house-format/surface/context semantics validated against Experience League.
+Next recommended step:
+- Optional: persist the authored Design into saved configs (still deferred).
+
+## 2026-07-14 - Offer Decisioning Studio: Design step + surface selection
+
+Branch: jmagana11/schema-assistant-offer-decisioning-e9ff07
+Milestone: Offer Decisioning Studio (OfferSimulator)
+Intent: Match the code-based-experience + Experience Decisioning workflow. Add an author-first
+"Design" step that emits the JSON content payload used to build the experience in AJO, then let a
+request target a single chosen surface (also surfaced on the published preview page).
+Files changed:
+- `src/dx-excshell-1/web-src/src/utils/offerDesign.js` (new pure helpers: design JSON + HTML export)
+- `src/dx-excshell-1/web-src/src/components/OfferSimulator.js`
+- `src/dx-excshell-1/actions/offer-preview/index.js`
+- `src/dx-excshell-1/actions/webpack-config.js` (new; action-bundler build fix, see note below)
+- `src/dx-excshell-1/test/offerDesign.test.js` (new)
+- `src/dx-excshell-1/test/offerPreview.test.js`
+Behavior impact:
+- Studio tabs are now Design -> Request -> Inspect -> Publish; opens on Design. The old Canvas tab
+  is removed and its card/carousel/grid/hero response preview is folded into Inspect ("Visual
+  preview"). Preview rendering is shared via a single `renderPreview(items, template)` helper.
+- Design authors a card/carousel/grid/hero experience and exports house-format JSON
+  `{ type, items: [{ title, description, image, ctaLabel, ctaUrl, badge, ...custom }], style?, layout? }`
+  (Copy JSON). Design state persists in `localStorage['offerDecisioningDesign']`; it is not written
+  to the saved offer config (config-store field whitelist unchanged).
+- Surfaces mode: a request now targets one selected surface (`requestState.selectedSurface`) instead
+  of the whole list; the saved config still persists the full surface list.
+- `offer-preview` GET loads the published config to render a surface `<select>` on the standalone
+  page; `createPreviewInteractInput` only honors a caller surface that is in the saved
+  `edge.surfaces` allow-list, otherwise falls back to the full list (public-endpoint guardrail).
+- No action names, URLs, routes, runtime annotations, or config-store contracts changed.
+Verification:
+- `npm test -- --runInBand` (25 suites / 168 tests pass, incl. new offerDesign JSON+HTML helpers and
+  surface guardrail).
+- `aio app build` (44 actions + web assets build clean) after the build fix below.
+- Local UI smoke via `aio app run --no-actions`.
+- BUILD FIX: the action bundler was failing with a webpack-internal error ("Self-reference dependency
+  has unused export name: This should not happen") while bundling an unrelated action (`getProfileCount`
+  via the `debug`/`axios` chain) under Node 24. Confirmed pre-existing and unrelated to the feature work
+  by reproducing it with all changes stashed (pristine tree), and it persisted after upgrading aio-cli
+  11.0.2 -> 11.1.2. Fixed by adding `src/dx-excshell-1/actions/webpack-config.js`, which aio-lib-runtime
+  auto-discovers (walking up from each action dir) and merges over its defaults; it disables the
+  webpack optimizations that trigger the crash (`concatenateModules`, `usedExports`, `providedExports`,
+  `sideEffects`). These are bundle-time tree-shaking/scope-hoisting options only - action runtime
+  behavior is unchanged; the trade-off is slightly larger, non-minified action bundles.
+Open questions:
+- Validated against Adobe docs (Experience League): code-based experience content is author-defined
+  JSON or HTML whose "JSON schema supports both a fixed set of properties and dynamic keys" - there
+  is no Adobe-mandated field schema, so the house-format standard fields + custom (dynamic) fields
+  are consistent with the model; no field renames required. Surfaces are full URIs
+  (e.g. `web://my.site.com/about.html` or wildcard `web://mydomain.com/*#hero_image`) carried in
+  `query.personalization.surfaces`, matching what the studio sends; single-surface targeting is valid.
+Next recommended step:
+- Optionally persist `design` into saved configs (requires extending `normalizeOfferConfig` +
+  `createPublishedConfig` in `offerConfigStore.js` and its test).
+
 ## 2026-06-02 - Custom Action dataset replace
 
 Branch: main

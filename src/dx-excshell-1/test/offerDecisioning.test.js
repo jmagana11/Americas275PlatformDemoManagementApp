@@ -1,7 +1,9 @@
 const {
   DEFAULT_PERSONALIZATION_SCHEMAS,
+  applyContextOverrides,
   buildCurl,
   buildEdgeInteractRequest,
+  flattenXdmPaths,
   normalizeEdgeResponse
 } = require('../actions/shared/offerDecisioning')
 
@@ -182,5 +184,51 @@ describe('Offer Decisioning Edge helpers', () => {
       },
       linkURL: 'https://example.test/object'
     })
+  })
+})
+
+describe('Context override helpers', () => {
+  const defaults = {
+    _tenant: {
+      productInfo: { sku: 'ABC', price: 10 },
+      loyalty: { member: true }
+    }
+  }
+
+  test('flattenXdmPaths returns dotted leaf paths with values', () => {
+    expect(flattenXdmPaths(defaults)).toEqual([
+      { path: '_tenant.productInfo.sku', value: 'ABC' },
+      { path: '_tenant.productInfo.price', value: 10 },
+      { path: '_tenant.loyalty.member', value: true }
+    ])
+    expect(flattenXdmPaths({})).toEqual([])
+  })
+
+  test('applyContextOverrides applies allowed paths and coerces to the saved type', () => {
+    const allowed = flattenXdmPaths(defaults).map((entry) => entry.path)
+    const result = applyContextOverrides(defaults, {
+      '_tenant.productInfo.sku': 'XYZ',
+      '_tenant.productInfo.price': '25',
+      '_tenant.loyalty.member': 'false'
+    }, allowed)
+
+    expect(result._tenant.productInfo.sku).toBe('XYZ')
+    expect(result._tenant.productInfo.price).toBe(25) // coerced number
+    expect(result._tenant.loyalty.member).toBe(false) // coerced boolean
+    // original defaults are not mutated
+    expect(defaults._tenant.productInfo.price).toBe(10)
+  })
+
+  test('applyContextOverrides ignores paths that are not in the allow-list', () => {
+    const allowed = ['_tenant.productInfo.sku']
+    const result = applyContextOverrides(defaults, {
+      '_tenant.productInfo.sku': 'XYZ',
+      '_tenant.productInfo.price': '999',
+      'evil.injected': 'nope'
+    }, allowed)
+
+    expect(result._tenant.productInfo.sku).toBe('XYZ')
+    expect(result._tenant.productInfo.price).toBe(10) // unchanged
+    expect(result.evil).toBeUndefined()
   })
 })
