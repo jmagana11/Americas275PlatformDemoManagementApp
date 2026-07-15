@@ -69,6 +69,72 @@ describe('Offer preview public guardrails', () => {
     expect(input.surfaces).toEqual([])
   })
 
+  test('narrows to a single caller-selected surface when it is one the config allows', () => {
+    const surfacesConfig = {
+      ...publishedConfig,
+      edge: {
+        ...publishedConfig.edge,
+        mode: 'surfaces',
+        decisionScopes: [],
+        surfaces: ['web://site/home', 'web://site/offers']
+      }
+    }
+
+    const input = createPreviewInteractInput(surfacesConfig, {
+      identityValue: 'profile-1',
+      surface: 'web://site/offers'
+    })
+
+    expect(input.mode).toBe('surfaces')
+    expect(input.surfaces).toEqual(['web://site/offers'])
+  })
+
+  test('ignores a caller surface that is not in the saved config and falls back to the full list', () => {
+    const surfacesConfig = {
+      ...publishedConfig,
+      edge: {
+        ...publishedConfig.edge,
+        mode: 'surfaces',
+        decisionScopes: [],
+        surfaces: ['web://site/home', 'web://site/offers']
+      }
+    }
+
+    const input = createPreviewInteractInput(surfacesConfig, {
+      identityValue: 'profile-1',
+      surface: 'web://evil/inject'
+    })
+
+    expect(input.surfaces).toEqual(['web://site/home', 'web://site/offers'])
+  })
+
+  test('applies customer context overrides only for saved context paths', () => {
+    const contextConfig = {
+      ...publishedConfig,
+      edge: {
+        ...publishedConfig.edge,
+        xdmDefaults: {
+          _tenant: { productInfo: { sku: 'ABC', price: 10 } }
+        }
+      }
+    }
+
+    const input = createPreviewInteractInput(contextConfig, {
+      identityValue: 'profile-1',
+      context: {
+        '_tenant.productInfo.sku': 'XYZ',
+        '_tenant.productInfo.price': '25',
+        'evil.injected': 'nope'
+      }
+    })
+
+    expect(input.xdm._tenant.productInfo.sku).toBe('XYZ')
+    expect(input.xdm._tenant.productInfo.price).toBe(25) // coerced to number
+    expect(input.xdm.evil).toBeUndefined() // path not in saved config
+    // saved config object not mutated
+    expect(contextConfig.edge.xdmDefaults._tenant.productInfo.sku).toBe('ABC')
+  })
+
   test('renders a public offer without exposing raw Edge response', async () => {
     const edgeFetch = jest.fn(async () => ({
       ok: true,

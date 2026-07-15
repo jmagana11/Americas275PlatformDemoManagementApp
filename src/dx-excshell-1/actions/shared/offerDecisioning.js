@@ -360,12 +360,78 @@ function buildCurl(request) {
   ].join(' \\\n')
 }
 
+// Flatten a nested XDM object into dotted leaf paths, e.g.
+//   { _tenant: { a: { b: 1 } } } -> [{ path: '_tenant.a.b', value: 1 }]
+// Arrays and primitives are treated as terminal leaves.
+function flattenXdmPaths (value, prefix = '') {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return prefix ? [{ path: prefix, value }] : []
+  }
+  return Object.entries(value).flatMap(([key, entryValue]) => {
+    const path = prefix ? `${prefix}.${key}` : key
+    if (entryValue && typeof entryValue === 'object' && !Array.isArray(entryValue)) {
+      return flattenXdmPaths(entryValue, path)
+    }
+    return [{ path, value: entryValue }]
+  })
+}
+
+function setXdmValueByPath (target, path, value) {
+  const parts = String(path || '').split('.').map((part) => part.trim()).filter(Boolean)
+  if (parts.length === 0) {
+    return
+  }
+  let current = target
+  parts.forEach((part, index) => {
+    if (index === parts.length - 1) {
+      current[part] = value
+      return
+    }
+    if (!current[part] || typeof current[part] !== 'object' || Array.isArray(current[part])) {
+      current[part] = {}
+    }
+    current = current[part]
+  })
+}
+
+// Coerce a (string) override to the type of the saved default at that path so
+// decisioning rules that expect numbers/booleans keep working.
+function coerceLikeTemplate (template, value) {
+  if (typeof template === 'number') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? value : parsed
+  }
+  if (typeof template === 'boolean') {
+    return String(value).trim().toLowerCase() === 'true'
+  }
+  return value
+}
+
+// Public-endpoint guardrail: apply only overrides whose dotted path is in the
+// allow-list (the saved context fields) onto a clone of the saved defaults.
+// Unknown paths are ignored so a caller cannot inject arbitrary XDM.
+function applyContextOverrides (xdmDefaults = {}, overrides = {}, allowedPaths = []) {
+  const allowed = new Set(allowedPaths)
+  const originalByPath = new Map(flattenXdmPaths(xdmDefaults).map((entry) => [entry.path, entry.value]))
+  const result = deepClone(xdmDefaults)
+  if (overrides && typeof overrides === 'object' && !Array.isArray(overrides)) {
+    Object.entries(overrides).forEach(([path, value]) => {
+      if (allowed.has(path)) {
+        setXdmValueByPath(result, path, coerceLikeTemplate(originalByPath.get(path), value))
+      }
+    })
+  }
+  return result
+}
+
 module.exports = {
   DEFAULT_PERSONALIZATION_SCHEMAS,
   EDGE_INTERACT_BASE_URL,
+  applyContextOverrides,
   buildCurl,
   buildEdgeInteractRequest,
   buildPropositionEventRequest,
+  flattenXdmPaths,
   mergeIdentityMap,
   normalizeEdgeResponse,
   normalizeStringList,

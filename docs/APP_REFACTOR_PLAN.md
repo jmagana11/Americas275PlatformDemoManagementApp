@@ -576,16 +576,22 @@ Plan:
 - Validate localStorage saved configs contain only non-secret request settings.
 - Add action tests for missing config and successful trigger request with mocked fetch.
 
-### Offer Simulator
+### Offer Simulator (UI label: "Offer Decisioning Studio")
 
 Files:
 - `OfferSimulator.js`
-- `offer-simulator`
+- `web-src/src/utils/offerDesign.js` (Design-step JSON helpers)
+- Actions: `edge-interact`, `offer-configs`, `offer-preview`, `offer-schema-assistant`
+- `offer-simulator` (legacy action, no longer called by the component)
+
+Workflow: Design (author card/carousel/grid/hero, export house-format JSON for AJO code-based
+experiences) -> Request (single-surface targeting) -> Inspect (visual preview) -> Publish.
 
 Plan:
 - Move AEP/AJO header construction to shared AEP helper.
 - Add fixtures for placement/decision request payloads.
 - Improve frontend error display without changing workflow.
+- Optional: persist the authored `design` into saved offer configs (extend `offerConfigStore.js`).
 
 ### AI Prompt Generator And Profile Injector
 

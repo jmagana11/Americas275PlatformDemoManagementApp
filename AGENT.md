@@ -107,7 +107,7 @@ docs/REFACTOR_CHANGE_LOG.md
 - User management: `UserManagement.js`, `adobe-auth`, `microsoft-auth`, `ims-product-config`
 - Content template migration: `ContentTemplateMigrator.js`, `content-templates`, `get-org-sandboxes`
 - Campaign trigger: `CampaignTrigger.js`, `campaign-trigger`
-- Offer simulator: `OfferSimulator.js`, `offer-simulator`
+- Offer Decisioning Studio (UI label; code still named "Offer simulator"): `OfferSimulator.js`, `web-src/src/utils/offerDesign.js`, and the `edge-interact`, `offer-configs`, `offer-preview`, `offer-schema-assistant` actions. Tabs: Design (author card/carousel/grid/hero -> export JSON for AJO code-based experiences) -> Request -> Inspect -> Publish. Legacy `offer-simulator` action still exists but is not called by the component.
 - AI tooling: `AIPromptGeneratorEnhanced.js`, `AEPProfileInjectorSimplified.js`, `prompt-generation`, `image-generation`, `image-analysis`, `generateProfiles`, `injectProfiles`
 - API Monitor: `ApiMonitor.js`, `api-monitor`, `webhook-receiver`
 - API Proxy: `ProxyManager.js`, `api-proxy`, `session-manager`
