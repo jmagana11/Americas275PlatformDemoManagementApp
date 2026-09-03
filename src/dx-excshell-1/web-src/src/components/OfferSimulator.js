@@ -998,6 +998,19 @@ const OfferSimulator = (props) => {
     localStorage.setItem('offerDecisioningDesign', JSON.stringify(design))
   }, [design])
 
+  // When a decision comes back declaring its own layout (carousel/grid/hero),
+  // follow it so the Visual preview and the published page render every item
+  // without the user re-picking a template type. Runs only when the declared
+  // type changes, so a manual picker override afterward still sticks.
+  const responseExperienceType = result?.normalized?.experienceType
+  useEffect(() => {
+    if (responseExperienceType) {
+      setTemplate((prev) => (
+        prev.type === responseExperienceType ? prev : { ...prev, type: responseExperienceType }
+      ))
+    }
+  }, [responseExperienceType])
+
   // Keep the "send to surface" selection valid as the surface list changes.
   useEffect(() => {
     setRequestState((prev) => {

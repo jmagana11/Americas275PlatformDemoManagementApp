@@ -277,4 +277,53 @@ describe('Offer preview public guardrails', () => {
     expect(result.renderedHtml).toContain('https://cdn.example.test/neuro-keynote.jpg')
     expect(result.renderedHtml).toContain('Explore series')
   })
+
+  // Regression for the RBC carousel: even a config saved with the default 'card'
+  // template must render all three slides, because the decision declares
+  // type: 'carousel' and the renderer follows that when the template is unset.
+  test('renders every slide of a house-format carousel from a still-default card config', async () => {
+    const edgeFetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        requestId: 'request-carousel',
+        handle: [{
+          type: 'personalization:decisions',
+          payload: [{
+            id: 'prop-carousel',
+            scope: 'saved-scope',
+            items: [{
+              id: 'offer-carousel',
+              schema: 'https://ns.adobe.com/personalization/json-content-item',
+              data: {
+                content: {
+                  type: 'carousel',
+                  items: [
+                    { title: 'FHSA Advantage', description: 'Save tax-free.', image: 'https://cdn.example.test/fhsa.png', ctaLabel: 'Open FHSA', ctaUrl: 'https://example.test/fhsa' },
+                    { title: 'More Mortgage Value', description: 'Get more value.', image: 'https://cdn.example.test/mortgage.png', ctaLabel: 'Talk to a Specialist', ctaUrl: 'https://example.test/mortgage' },
+                    { title: 'Send Money Home', description: 'Simply and securely.', image: 'https://cdn.example.test/imt.png', ctaLabel: 'Send Money Now', ctaUrl: 'https://example.test/imt' }
+                  ]
+                }
+              }
+            }]
+          }]
+        }]
+      })
+    }))
+
+    // publishedConfig.template.type is 'card' — the pre-fix stale scenario.
+    const result = await renderPublishedOffer(publishedConfig, {
+      identityValue: 'profile-1'
+    }, {
+      fetch: edgeFetch
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.itemCount).toBe(3)
+    expect(result.templateType).toBe('carousel')
+    expect(result.renderedHtml).toContain('FHSA Advantage')
+    expect(result.renderedHtml).toContain('More Mortgage Value')
+    expect(result.renderedHtml).toContain('Send Money Home')
+    expect(result.renderedHtml).toContain('ods-carousel')
+  })
 })

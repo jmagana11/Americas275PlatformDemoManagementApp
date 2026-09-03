@@ -185,6 +185,119 @@ describe('Offer Decisioning Edge helpers', () => {
       linkURL: 'https://example.test/object'
     })
   })
+
+  // Regression for the RBC carousel: AJO returns the whole carousel as a single
+  // json-content-item whose content is { type: 'carousel', items: [3 slides] }.
+  // All three slides must be expanded into individual offer items so the preview
+  // and published page render every card, not just one.
+  test('expands a house-format carousel content item into one offer per slide', () => {
+    const normalized = normalizeEdgeResponse({
+      requestId: '0a0eb19c-2071-4e43-9879-a2c0691d0252',
+      handle: [{
+        type: 'personalization:decisions',
+        payload: [{
+          id: '16fdbcbc-f325-45f5-8920-2c6a823c5f62',
+          scope: 'web://lab.rbc.com/home#carousel',
+          scopeDetails: {
+            characteristics: { eventToken: 'carousel-event-token' }
+          },
+          items: [{
+            id: '815dfdbe-5b43-4d91-a090-c5467b60d981',
+            schema: 'https://ns.adobe.com/personalization/json-content-item',
+            data: {
+              content: {
+                type: 'carousel',
+                items: [{
+                  badge: 'RBC-NBAS',
+                  ctaLabel: 'Open My FHSA Today',
+                  ctaUrl: 'https://www.rbcroyalbank.com/investments/fhsa.html',
+                  description: 'Save tax-free with an FHSA.',
+                  image: 'https://cdn.example.test/fhsa.png',
+                  title: 'First-Time Home Buyer Advantage: Save Tax-Free with an FHSA'
+                }, {
+                  badge: 'RBC-NBAS',
+                  ctaLabel: 'Talk to a Mortgage Specialist',
+                  ctaUrl: 'https://www.rbcroyalbank.com/mortgages/special-mortgage-offers.html',
+                  description: 'Get more value from your next RBC mortgage.',
+                  image: 'https://cdn.example.test/mortgage.png',
+                  title: 'Get More Value From Your Next RBC Mortgage'
+                }, {
+                  badge: 'RBC-NBAS',
+                  ctaLabel: 'Send Money Now',
+                  ctaUrl: 'https://www.rbcroyalbank.com/banking-services/international-money-transfer.html',
+                  description: 'Send money home, simply and securely.',
+                  image: 'https://cdn.example.test/imt.png',
+                  title: 'Send Money Home, Simply and Securely'
+                }]
+              }
+            }
+          }]
+        }]
+      }]
+    })
+
+    // One proposition, but its single container item is split into three slides.
+    expect(normalized.propositions).toHaveLength(1)
+    expect(normalized.propositions[0].items).toHaveLength(3)
+    expect(normalized.experienceType).toBe('carousel')
+    expect(normalized.summary).toMatchObject({
+      propositionCount: 1,
+      itemCount: 3,
+      experienceType: 'carousel'
+    })
+
+    // Each slide is projected onto the shape DEFAULT_TEMPLATE maps against:
+    // text fields on parsedContent, image via deliveryURL, CTA via linkURL.
+    const [first, , third] = normalized.propositions[0].items
+    expect(first).toMatchObject({
+      experienceType: 'carousel',
+      containerIndex: 0,
+      deliveryURL: 'https://cdn.example.test/fhsa.png',
+      linkURL: 'https://www.rbcroyalbank.com/investments/fhsa.html',
+      parsedContent: {
+        title: 'First-Time Home Buyer Advantage: Save Tax-Free with an FHSA',
+        ctaLabel: 'Open My FHSA Today',
+        badge: 'RBC-NBAS'
+      }
+    })
+    expect(third).toMatchObject({
+      containerIndex: 2,
+      deliveryURL: 'https://cdn.example.test/imt.png',
+      parsedContent: { title: 'Send Money Home, Simply and Securely' }
+    })
+    // Split items get stable, distinct ids derived from the parent item id.
+    expect(new Set(normalized.propositions[0].items.map((item) => item.id)).size).toBe(3)
+  })
+
+  test('leaves a single-item card container as one offer item', () => {
+    const normalized = normalizeEdgeResponse({
+      requestId: 'request-card',
+      handle: [{
+        type: 'personalization:decisions',
+        payload: [{
+          id: 'prop-card',
+          scope: 'scope-card',
+          items: [{
+            id: 'offer-card',
+            schema: 'https://ns.adobe.com/personalization/json-content-item',
+            data: {
+              content: {
+                type: 'card',
+                items: [{ title: 'Solo card', description: 'One item', image: 'https://cdn.example.test/card.png' }]
+              }
+            }
+          }]
+        }]
+      }]
+    })
+
+    expect(normalized.propositions[0].items).toHaveLength(1)
+    expect(normalized.experienceType).toBe('card')
+    expect(normalized.propositions[0].items[0]).toMatchObject({
+      deliveryURL: 'https://cdn.example.test/card.png',
+      parsedContent: { title: 'Solo card' }
+    })
+  })
 })
 
 describe('Context override helpers', () => {
