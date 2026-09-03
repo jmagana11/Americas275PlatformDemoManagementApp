@@ -318,6 +318,51 @@ function normalizeItem(item = {}, proposition = {}) {
   }
 }
 
+// House-format experience containers authored in the Design step (see
+// buildDesignJson in utils/offerDesign.js). A carousel/grid returns *one*
+// json-content-item whose content is { type, items: [...] }; the individual
+// slides live one level deeper, so they must be expanded back into one offer
+// item per slide before rendering (otherwise only a single card ever shows).
+const CONTAINER_EXPERIENCE_TYPES = new Set(['card', 'carousel', 'grid', 'hero'])
+
+function isExperienceContainer(parsedContent) {
+  return Boolean(
+    parsedContent &&
+    typeof parsedContent === 'object' &&
+    !Array.isArray(parsedContent) &&
+    CONTAINER_EXPERIENCE_TYPES.has(parsedContent.type) &&
+    Array.isArray(parsedContent.items) &&
+    parsedContent.items.length > 0
+  )
+}
+
+// Expand a normalized item whose content is a house-format container into one
+// item per slide. Each slide is projected onto the shape DEFAULT_TEMPLATE maps
+// against (parsedContent.* for text fields, deliveryURL for image, linkURL for
+// the CTA), and tagged with the container type so the display can follow it.
+// Non-container items pass through unchanged.
+function expandContainerItem(normalizedItem = {}) {
+  const parsedContent = normalizedItem.parsedContent
+  if (!isExperienceContainer(parsedContent)) {
+    return [normalizedItem]
+  }
+
+  return parsedContent.items.map((slide, index) => {
+    const slideContent = ensureObject(slide)
+    return {
+      ...normalizedItem,
+      id: slideContent.id || `${normalizedItem.id || 'item'}-${index}`,
+      format: normalizedItem.format || 'application/json',
+      content: slideContent,
+      parsedContent: slideContent,
+      deliveryURL: slideContent.image || normalizedItem.deliveryURL || null,
+      linkURL: slideContent.ctaUrl || normalizedItem.linkURL || null,
+      experienceType: parsedContent.type,
+      containerIndex: index
+    }
+  })
+}
+
 function normalizeEdgeResponse(edgeResponse = {}) {
   const decisionPayloads = getHandlePayloads(edgeResponse, PERSONALIZATION_DECISIONS_HANDLE)
   const propositions = decisionPayloads.map((proposition) => ({
@@ -326,13 +371,19 @@ function normalizeEdgeResponse(edgeResponse = {}) {
     scopeDetails: proposition.scopeDetails || null,
     activity: proposition.activity || null,
     placement: proposition.placement || null,
-    items: ensureArray(proposition.items).map((item) => normalizeItem(item, proposition))
+    items: ensureArray(proposition.items)
+      .map((item) => normalizeItem(item, proposition))
+      .flatMap((item) => expandContainerItem(item))
   }))
   const items = propositions.flatMap((proposition) => proposition.items)
+  // The layout the decision itself declares (carousel/grid/hero) so the preview
+  // and published page can render it without the user re-picking a template type.
+  const experienceType = items.map((item) => item.experienceType).find(Boolean) || null
 
   return {
     requestId: edgeResponse.requestId || null,
     propositions,
+    experienceType,
     locationHints: getHandlePayloads(edgeResponse, LOCATION_HINT_HANDLE),
     stateEntries: extractStateEntries(edgeResponse),
     identity: getHandlePayloads(edgeResponse, IDENTITY_RESULT_HANDLE),
@@ -341,7 +392,8 @@ function normalizeEdgeResponse(edgeResponse = {}) {
       propositionCount: propositions.length,
       itemCount: items.length,
       fallbackCount: items.filter((item) => item.isFallback).length,
-      personalizedCount: items.filter((item) => !item.isFallback).length
+      personalizedCount: items.filter((item) => !item.isFallback).length,
+      experienceType
     }
   }
 }

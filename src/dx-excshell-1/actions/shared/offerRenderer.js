@@ -268,15 +268,21 @@ function getRendererStyles() {
 function renderOfferExperience(normalized = {}, template = DEFAULT_TEMPLATE) {
   const safeTemplate = normalizeTemplate(template)
   const items = getOfferItems(normalized)
+  // Honor a deliberate multi-item template choice; otherwise fall back to the
+  // layout the decision itself declares so a still-default 'card' template does
+  // not collapse a returned carousel/grid down to a single item.
+  const layoutType = (safeTemplate.type && safeTemplate.type !== 'card')
+    ? safeTemplate.type
+    : (normalized.experienceType || safeTemplate.type)
   let html
 
   if (items.length === 0) {
     html = '<div class="ods-empty">No offer items returned.</div>'
-  } else if (safeTemplate.type === 'carousel') {
+  } else if (layoutType === 'carousel') {
     html = renderCarousel(items, safeTemplate)
-  } else if (safeTemplate.type === 'grid') {
+  } else if (layoutType === 'grid') {
     html = renderGrid(items, safeTemplate)
-  } else if (safeTemplate.type === 'hero') {
+  } else if (layoutType === 'hero') {
     html = renderHero(items, safeTemplate)
   } else {
     html = renderGrid(items.slice(0, 1), safeTemplate)
@@ -286,7 +292,7 @@ function renderOfferExperience(normalized = {}, template = DEFAULT_TEMPLATE) {
     html: `<div class="ods-preview-root">${html}</div>`,
     styles: getRendererStyles(),
     itemCount: items.length,
-    templateType: safeTemplate.type
+    templateType: layoutType
   }
 }
 
